@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>UNDO – Geteilte Reflexion</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fafafa;
+            padding: 40px;
+            color: #333;
+            text-align: center;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: auto;
+        }
+        h2 {
+            margin-bottom: 20px;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Eine UNDO Reflexion</h2>
+        <p><strong>Frage:</strong> {{ reflection.question }}</p>
+        <p><strong>Antwort:</strong> {{ reflection.answer }}</p>
+        <p><strong>Feedback:</strong> {{ reflection.feedback }}</p>
+        <p style="margin-top:20px; font-size:14px; color:#888;">
+            Geteilt über <strong>UNDO</strong>
+        </p>
+    </div>
+</body>
+</html>

@@ -1,11 +1,109 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <title>Frage des Tages</title>
+  <meta charset="UTF-8" />
+  <title>Willkommen – UNDO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#ffffff; --fg:#0a0a0a; --muted:#6b6b6b; --line:#e9e9e9;
+      --radius:16px; --shadow:0 6px 20px rgba(0,0,0,.06);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:var(--bg); color:var(--fg);
+      padding:32px 18px 110px; /* Platz für Bottom-Nav */
+      text-align:center;
+    }
+
+    h1{ font-size:24px; margin:0 0 8px; font-weight:800; letter-spacing:.2px; }
+    .sub{ color:var(--muted); font-size:14px; margin-bottom:10px; }
+
+    .streak-wrap{
+      margin:26px auto; max-width:520px;
+      padding:28px 20px; border:1px solid var(--line); border-radius:var(--radius);
+      background:#fff; box-shadow:var(--shadow);
+    }
+    .streak-number{ font-size:64px; font-weight:900; line-height:1; margin:0; }
+    .streak-label{ margin-top:8px; font-size:16px; color:var(--muted); font-weight:600; }
+
+    .main-button, .ghost-button{
+      display:inline-block; width:100%; max-width:320px;
+      padding:14px 18px; border-radius:12px; font-weight:800; font-size:16px;
+      cursor:pointer; box-shadow:var(--shadow); transition:transform .06s ease;
+    }
+    .main-button{ border:none; background:#000; color:#fff; }
+    .main-button:hover{ filter:brightness(0.95); }
+    .main-button:active{ transform:translateY(1px); }
+
+    .main-button[disabled]{
+      background:#cfcfcf; color:#555; cursor:not-allowed; border:1px solid #bbb;
+      box-shadow:none;
+    }
+    .btn-sub{
+      display:block; font-weight:600; font-size:12px; margin-top:4px; color:#555;
+    }
+
+    .ghost-button{
+      margin-top:10px; background:#fff; color:#000; border:1px solid #000;
+    }
+    .ghost-button:active{ transform:translateY(1px); }
+
+    nav{
+      position:fixed; bottom:0; left:0; right:0;
+      background:#fff; border-top:1px solid var(--line);
+      padding:12px 0; display:flex; justify-content:space-around;
+    }
+    nav a{ text-decoration:none; color:#000; font-weight:700; font-size:16px; }
+
+    @media (min-width:720px){
+      body{ padding:40px 22px 120px; }
+    }
+  </style>
 </head>
 <body>
-    <h1>Frage des Tages</h1>
-    <p>{{ question }}</p>
+
+  <h1>Hallo, {{ username }}</h1>
+  <div class="sub">Schön, dass Du da bist.</div>
+
+  {% if current_user.streak and current_user.streak > 0 %}
+    <div class="streak-wrap">
+      <p class="streak-number">{{ current_user.streak }}</p>
+      <div class="streak-label">Tage Streak</div>
+    </div>
+  {% endif %}
+
+  {# TODAY'S UNDO #}
+  {% if not show_extra %}
+    <!-- Noch NICHT beantwortet: Button aktiv -->
+    <form action="{{ url_for('prompt') }}" method="get" style="margin-top:14px;">
+      <input type="hidden" name="mode" value="{{ current_mode }}">
+      <button type="submit" class="main-button">TODAY'S UNDO</button>
+    </form>
+    
+{% else %}
+  <!-- Heute bereits beantwortet: Button grau + dynamischer Hinweis -->
+  <button class="main-button" disabled>
+    TODAY'S UNDO
+    {% if next_unlock_label %}
+      <span class="btn-sub">{{ next_unlock_label }}</span>
+    {% endif %}
+  </button>
+
+  <!-- Extra-Frage (1 Token) -->
+  <form action="{{ url_for('prompt') }}" method="get">
+    <input type="hidden" name="mode" value="{{ current_mode }}">
+    <input type="hidden" name="extra" value="1">
+    <button type="submit" class="ghost-button">Extra-Frage (1 Token)</button>
+  </form>
+{% endif %}
+
+  <nav>
+    <a href="{{ url_for('index') }}">Home</a>
+    <a href="{{ url_for('reflection') }}">Reflection</a>
+    <a href="{{ url_for('profile') }}">Profile</a>
+  </nav>
+
 </body>
 </html>

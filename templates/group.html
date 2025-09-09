@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Deine Gruppen – UNDO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; text-align:center; padding:40px 20px 100px; background:#fff; color:#000; }
+    h2 { font-size:28px; margin-bottom:18px; }
+    .group-list { max-width:600px; margin:0 auto; }
+    .group-box { border:1px solid #ccc; border-radius:12px; padding:16px; margin:12px 0; box-shadow:0 2px 8px rgba(0,0,0,.08); text-align:left; }
+    .group-name { font-weight:bold; font-size:18px; margin-bottom:6px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .button, .btn-secondary { padding:10px 16px; border:none; border-radius:8px; cursor:pointer; font-size:15px; }
+    .button { background:#000; color:#fff; font-weight:600; }
+    .btn-secondary { background:#f2f2f2; }
+    form.inline { display:inline; }
+    .empty { color:#666; margin:20px 0; }
+    nav { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #ddd; padding:12px 0; display:flex; justify-content:space-around; }
+    nav a { text-decoration:none; color:black; font-weight:bold; font-size:16px; }
+  </style>
+</head>
+<body>
+
+  <h2>Deine Gruppen</h2>
+
+  <div class="group-list">
+    {% if groups and groups|length > 0 %}
+      {% for group in groups %}
+        <div class="group-box">
+          <div class="group-name">{{ group.name }}</div>
+          <div class="row">
+            <form class="inline" action="{{ url_for('join_group', group_id=group.id) }}">
+              <button class="btn-secondary" type="submit">Beitreten/Öffnen</button>
+            </form>
+            <button class="btn-secondary" onclick="shareInvite('{{ request.url_root | trim('/') }}/join/{{ group.id }}')">Einladen</button>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty">Noch keine Gruppe vorhanden.</p>
+    {% endif %}
+
+    <form action="{{ url_for('create_group') }}" method="POST" style="margin-top:16px;">
+      <input type="hidden" name="name" value="Meine Gruppe" />
+      <button class="button" type="submit">Neue Gruppe erstellen</button>
+    </form>
+  </div>
+
+  <script>
+    function shareInvite(link) {
+      if (navigator.share) {
+        navigator.share({ title: 'Komm in meine UNDO Gruppe!', text: 'Hier ist der Beitrittslink:', url: link })
+          .catch(() => {});
+      } else {
+        prompt('Teilen wird nicht unterstützt – kopiere den Link:', link);
+      }
+    }
+  </script>
+
+  <nav>
+    <a href="/">Home</a>
+    <a href="/reflection">Reflection</a>
+    <a href="/profile">Profile</a>
+  </nav>
+</body>
+</html>

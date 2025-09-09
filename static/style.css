@@ -1,0 +1,111 @@
+/* 🟢 Global Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ⚪ Body */
+body {
+    font-family: Arial, sans-serif;
+    padding-bottom: 100px; /* genug Platz für Navbar */
+    background-color: #fff;
+    color: #000;
+    min-height: 100vh;
+}
+
+/* ⚫ Navbar */
+.navbar {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #ffffff;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    border-top: 1px solid #ffffff;
+}
+
+/* 🟤 Buttons */
+.profile-button {
+    display: block;
+    width: 100%;
+    max-width: 250px;
+    margin: 10px auto;
+    padding: 12px;
+    font-size: 16px;
+    border: none;
+    border-radius: 10px;
+    background-color: #000;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.profile-button:disabled {
+    background-color: #ffffff;
+}
+
+.streak-box {
+    margin: 40px auto;
+    text-align: center;
+}
+
+.streak-number {
+    font-size: 64px;
+    font-weight: bold;
+    color: #000;
+    line-height: 1;
+}
+
+.streak-label {
+    font-size: 18px;
+    font-weight: 500;
+    color: #555;
+    margin-top: 8px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background-color: #fff;
+  border-bottom: 1px solid #ddd;
+}
+
+.topbar .brand {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.icon-btn img {
+  width: 28px;   /* Größe einheitlich halten */
+  height: 28px;
+  object-fit: contain;
+}
+
+/* gleiche Zeilenhöhe + saubere Ausrichtung */
+.row{
+  display:flex; align-items:center; gap:14px;
+  padding:14px 0; border-top:1px solid var(--line);
+  min-height:72px;                 /* ✔ einheitliche Zeilenhöhe */
+}
+
+/* Texte nicht umbrechen -> verhindert höhere Zeile beim Abo-Text */
+.muted{
+  color:var(--muted); font-size:14px; margin-top:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; /* ✔ keine Mehrzeiligkeit */
+}
+
+/* rechte Buttonspalte: gleiche Breite in allen Zeilen */
+.action{ flex:0 0 var(--btnw); display:flex; justify-content:flex-end; }
+.btn{
+  width:var(--btnw); height:var(--btnh);
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:0 16px; border-radius:10px; border:1px solid #000;
+  background:#000; color:#fff; font-weight:800; cursor:pointer;
+  text-decoration:none; white-space:nowrap; font-size:var(--btnfs); line-height:1;
+}
+
+/* restliche kleine Ursachen für Versatz beseitigen */
+form{ margin:0; }

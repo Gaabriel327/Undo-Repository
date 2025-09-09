@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Tokens kaufen</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; background-color: #f9f9f9; color: #333; }
+    .box { background: white; padding: 30px; border-radius: 12px; max-width: 600px; margin: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h2 { text-align: center; margin-bottom: 30px; }
+    form { text-align: center; }
+    button { margin: 10px; padding: 10px 20px; border: none; background-color: #000; color: white; border-radius: 8px; cursor: pointer; }
+ 
+ nav{
+      position:fixed; bottom:0; left:0; right:0;
+      background:#fff; border-top:1px solid var(--line);
+      padding:12px 0; display:flex; justify-content:space-around;
+    }
+    nav a{
+      text-decoration:none; color:var(--fg); font-weight:700; font-size:16px;
+    }
+ 
+ </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Tokens kaufen</h2>
+    <form method="post">
+      <button name="amount" value="3">3 Tokens – 1 €</button>
+      <button name="amount" value="10">10 Tokens – 3 €</button>
+      <button name="amount" value="25">25 Tokens – 6 €</button>
+    </form>
+  </div>
+
+ <nav>
+    <a href="{{ url_for('index') }}">Home</a>
+    <a href="{{ url_for('reflection') }}">Reflection</a>
+    <a href="{{ url_for('profile') }}">Profile</a>
+  </nav>
+</body>
+</html>

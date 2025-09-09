@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Persönliches Profil – UNDO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; background:#fff; color:#000; padding:40px 20px 100px; }
+    h2 { text-align:center; margin-bottom:20px; }
+    form { max-width:520px; margin:0 auto; }
+    label { display:block; font-weight:bold; margin-top:14px; }
+    input, textarea { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; margin-top:6px; }
+    button { margin-top:18px; width:100%; padding:12px; border:none; border-radius:10px; background:#000; color:#fff; font-weight:600; cursor:pointer; }
+    .hint { text-align:center; margin-top:10px; color:#555; font-size:14px; }
+    nav { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #ddd; padding:12px 0; display:flex; justify-content:space-around; }
+    nav a { text-decoration:none; color:black; font-weight:bold; font-size:16px; }
+  </style>
+</head>
+<body>
+  <h2>Persönliches Profil</h2>
+
+  <form method="POST">
+    <label for="first_name">Vorname</label>
+    <input id="first_name" name="first_name" type="text" value="{{ user.first_name or '' }}" required />
+
+    <label for="birth_date">Geburtsdatum</label>
+    <input id="birth_date" name="birth_date" type="date" value="{{ user.birth_date or '' }}" required />
+
+    <label for="motive">Beweggrund</label>
+    <textarea id="motive" name="motive" rows="3" placeholder="Warum nutzt du UNDO?">{{ user.motive or '' }}</textarea>
+
+    <label for="chance">Aussicht / Ziel</label>
+    <textarea id="chance" name="chance" rows="3" placeholder="Was möchtest du erreichen?">{{ user.chance or '' }}</textarea>
+
+    <button type="submit">Speichern & weiter</button>
+    <p class="hint">Du kannst diese Daten später über dein Profil-Icon anpassen.</p>
+  </form>
+
+<form action="{{ url_for('logout') }}" method="get" style="margin-top:14px;">
+  <button type="submit" style="width:100%;padding:12px;border:1px solid #010101;border-radius:10px;background:#030303;font-weight:700;">
+    Logout
+  </button>
+</form>
+
+  <nav>
+    <a href="/">Home</a>
+    <a href="/reflection">Reflection</a>
+    <a href="/profile">Profile</a>
+  </nav>
+</body>
+</html>

@@ -1,0 +1,11 @@
+flask
+flask-login
+flask-sqlalchemy
+sqlalchemy
+werkzeug
+python-dotenv
+openai
+gunicorn
+matplotlib
+numpy
+pytz
