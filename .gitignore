@@ -15,3 +15,6 @@ instance/undo.db
 # Bilder, die generiert werden (optional)
 static/radar_*.png
 static/share_*.png
+.env
+instance/
+undo.db
