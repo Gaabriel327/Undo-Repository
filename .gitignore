@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Env / Secrets
+.env
+
+# SQLite DB (egal ob in root oder instance/)
+undo.db
+instance/undo.db
+
+# Bilder, die generiert werden (optional)
+static/radar_*.png
+static/share_*.png
