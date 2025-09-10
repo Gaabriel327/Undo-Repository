@@ -26,10 +26,15 @@ from pro_feedback_engine import (
 )
 
 # ===========================
-# App/Timezone
+# Pfade & Zeitzonen
 # ===========================
+BASE_DIR = Path(__file__).resolve().parent
+INSTANCE_DIR = BASE_DIR / "instance"
+INSTANCE_DIR.mkdir(parents=True, exist_ok=True)      # sicherstellen, dass instance/ existiert
+DB_PATH = INSTANCE_DIR / "undo.db"                   # …/instance/undo.db
+
 APP_TZ = ZoneInfo(os.getenv("APP_TZ", "Europe/Berlin"))
-UTC = ZoneInfo("UTC")
+UTC    = ZoneInfo("UTC")
 
 # ===========================
 # App Setup
@@ -37,58 +42,46 @@ UTC = ZoneInfo("UTC")
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "supersecret")
 
-BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "undo.db"
-
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + str(DB_PATH)
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
-@app.before_first_request
-def bootstrap():
-    with app.app_context():
-        ensure_user_columns()
-        ensure_groups_columns()
-        db.create_all()
-        seed_questions_if_empty()
-
 # ===========================
-# DB Column Helpers
+# DB Column Helpers (idempotent; nutzt db.engine)
 # ===========================
 def ensure_user_columns():
-    conn = sqlite3.connect(str(DB_PATH))
-    cur = conn.cursor()
-    cur.execute("PRAGMA table_info(user)")
-    cols = {row[1] for row in cur.fetchall()}
-    def add(sql):
-        try:
-            cur.execute(sql)
-        except Exception:
-            pass
-    if "first_name" not in cols: add("ALTER TABLE user ADD COLUMN first_name TEXT")
-    if "birth_date" not in cols: add("ALTER TABLE user ADD COLUMN birth_date TEXT")
-    if "motive" not in cols: add("ALTER TABLE user ADD COLUMN motive TEXT")
-    if "chance" not in cols: add("ALTER TABLE user ADD COLUMN chance TEXT")
-    if "profile_completed" not in cols: add("ALTER TABLE user ADD COLUMN profile_completed INTEGER DEFAULT 0")
-    if "pro_until" not in cols: add("ALTER TABLE user ADD COLUMN pro_until TEXT")
-    conn.commit()
-    conn.close()
+    """Fügt fehlende Spalten in der Tabelle 'user' hinzu (idempotent)."""
+    with db.engine.begin() as conn:
+        cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(user)").fetchall()}
+
+        def add(sql: str):
+            try:
+                conn.exec_driver_sql(sql)
+            except Exception:
+                pass  # Spalte existiert evtl. schon
+
+        if "first_name" not in cols:        add("ALTER TABLE user ADD COLUMN first_name TEXT")
+        if "birth_date" not in cols:        add("ALTER TABLE user ADD COLUMN birth_date TEXT")
+        if "motive" not in cols:            add("ALTER TABLE user ADD COLUMN motive TEXT")
+        if "chance" not in cols:            add("ALTER TABLE user ADD COLUMN chance TEXT")
+        if "profile_completed" not in cols: add("ALTER TABLE user ADD COLUMN profile_completed INTEGER DEFAULT 0")
+        if "pro_until" not in cols:         add("ALTER TABLE user ADD COLUMN pro_until TEXT")
+
 
 def ensure_groups_columns():
-    conn = sqlite3.connect(str(DB_PATH))
-    cur = conn.cursor()
-    cur.execute("PRAGMA table_info(groups)")
-    cols = {row[1] for row in cur.fetchall()}
-    def add(sql):
-        try:
-            cur.execute(sql)
-        except Exception:
-            pass
-    if "group_members" not in cols: add("ALTER TABLE groups ADD COLUMN group_members TEXT")
-    if "created_by" not in cols: add("ALTER TABLE groups ADD COLUMN created_by TEXT")
-    if "name" not in cols: add("ALTER TABLE groups ADD COLUMN name TEXT")
-    conn.commit()
-    conn.close()
+    """Fügt fehlende Spalten in der Tabelle 'groups' hinzu (idempotent)."""
+    with db.engine.begin() as conn:
+        cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(groups)").fetchall()}
+
+        def add(sql: str):
+            try:
+                conn.exec_driver_sql(sql)
+            except Exception:
+                pass
+
+        if "group_members" not in cols: add("ALTER TABLE groups ADD COLUMN group_members TEXT")
+        if "created_by" not in cols:    add("ALTER TABLE groups ADD COLUMN created_by TEXT")
+        if "name" not in cols:          add("ALTER TABLE groups ADD COLUMN name TEXT")
 
 # ===========================
 # Flask-Login
@@ -858,10 +851,10 @@ def seed_questions_if_empty():
 #  Start
 # ===========================
 if __name__ == "__main__":
+    Path("instance").mkdir(exist_ok=True)
     with app.app_context():
+        db.create_all()
         ensure_user_columns()
         ensure_groups_columns()
-        db.create_all()
         seed_questions_if_empty()
-        print("✅ DB ok, Seeds vorhanden. Starte Server…")
     app.run(host="127.0.0.1", port=5050, debug=True)
