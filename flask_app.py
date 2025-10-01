@@ -1,11 +1,13 @@
-# flask_app.py
-import os, uuid, random, re, sqlite3
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-from pathlib import Path
+# flask_app.py  —  Recovery/Neustart (Drop-in)
+from __future__ import annotations
 
-from flask import Flask, render_template, request, redirect, url_for
-from werkzeug.security import generate_password_hash, check_password_hash
+import os
+from datetime import datetime, timedelta, date
+
+from flask import (
+    Flask, request, redirect, url_for, render_template,
+    jsonify, make_response, session, g
+)
 from flask_login import (
     LoginManager, login_user, logout_user, login_required, current_user
 )
