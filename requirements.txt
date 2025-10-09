@@ -1,0 +1,17 @@
+flask
+flask-login
+flask-sqlalchemy
+sqlalchemy
+werkzeug
+python-dotenv
+openai>=1.40
+gunicorn
+matplotlib
+numpy
+pytz
+Pillow
+psycopg2-binary
+email-validator
+itsdangerous
+jinja2
+click

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% set hide_nav = True %}
+{% block title %}Registrieren – UNDO{% endblock %}
+{% block content %}
+  <div style="max-width:320px;margin:0 auto;text-align:center;padding-top:12vh;">
+    <h1>UNDO</h1>
+    <p class="sub" style="color:#666;margin-bottom:24px;">Registriere dich</p>
+    
+    {% if error %}
+      <div class="sub" style="color:#c00;margin-bottom:12px;text-align:left">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="text" name="username" placeholder="Benutzername" required
+             style="padding:12px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
+      <input type="email" name="email" placeholder="E-Mail" required
+             style="padding:12px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
+      <input type="password" name="password" placeholder="Passwort" required
+             style="padding:12px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
+      <input type="text" name="promo_code" placeholder="Dein Promocode" required 
+             style="padding:12px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
+
+      <button type="submit"
+              style="padding:12px;border:none;border-radius:10px;background:#000;color:#fff;font-weight:800;font-size:16px;cursor:pointer;">
+        Registrieren
+      </button>
+    </form>
+
+    <div style="margin-top:16px;font-size:14px;">
+      Schon ein Konto? <a href="{{ url_for('login') }}">Zum Login</a>
+    </div>
+  </div>
+{% endblock %}

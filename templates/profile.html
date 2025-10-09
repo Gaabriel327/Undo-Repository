@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Profil – UNDO{% endblock %}
+
+{% block content %}
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div>
+      <h1>Hallo, {{ current_user.username }}</h1>
+      <div class="sub">Willkommen zurück.</div>
+    </div>
+    <a href="{{ url_for('personal') }}" class="icon-btn" aria-label="Profil bearbeiten">
+  <img src="{{ url_for('static', filename='icon/profile_icon.svg') }}" 
+       alt="Profil bearbeiten" style="width:28px;height:28px;">
+</a>
+  </div>
+
+  <div class="chips">
+    <div class="chip"><div><strong>{{ current_user.tokens or 0 }}</strong><br><small>Tokens</small></div></div>
+    {% if current_user.streak and current_user.streak > 0 %}
+    <div class="chip"><div><strong>{{ current_user.streak }} Tage</strong><br><small>Streak</small></div></div>
+    {% endif %}
+  </div>
+
+<a class="btn ghost" href="{{ url_for('tokens_info') }}">Über Tokens</a>
+
+  {% if (current_user.subscription or 'free')|lower != 'pro' %}
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <div class="title">Start your UNDO Journey</div>
+          <div class="muted">Entdecke UNDO Pro: WeDo, KI-Feedback & Diagramm inklusive.</div>
+        </div>
+        <a href="{{ url_for('settings') }}#pro" class="btn">Zu Pro-Optionen</a>
+      </div>
+    </div>
+  {% endif %}
+
+    <div class="row">
+      <div class="grow">
+        <div class="title">Fortschritt</div>
+        <div class="muted">Dein persönliches Diagramm & Auswertung</div>
+      </div>
+      <a href="{{ url_for('progress') }}" class="btn">Fortschritt</a>
+    </div>
+
+    <div class="row">
+      <div class="grow">
+        <div class="title">WeDo</div>
+        <div class="muted">Gemeinsam Ziele erreichen</div>
+      </div>
+      <a href="{{ url_for('groups_list') }}" class="btn">WeDo</a>
+    </div>
+
+    <div class="row">
+      <div class="grow">
+        <div class="title">Tokens</div>
+        <div class="muted">Tokens für Extra-Features kaufen</div>
+      </div>
+      <a href="{{ url_for('buy_tokens') }}" class="btn">Tokens kaufen</a>
+    </div>
+
+    <div class="row">
+      <div class="grow">
+        <div class="title">Einstellungen</div>
+        <div class="muted">Abo, Daten & App-Einstellungen</div>
+      </div>
+      <a href="{{ url_for('settings') }}" class="btn">Einstellungen</a>
+    </div>
+  </div>
+{% endblock %}

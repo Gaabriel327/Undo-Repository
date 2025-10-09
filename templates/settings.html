@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen – UNDO{% endblock %}
+
+{% block content %}
+  <h1>Einstellungen</h1>
+
+  <div class="card">
+    {% if (current_user.subscription or 'free')|lower == 'pro' %}
+      <div class="row">
+        <div class="grow">
+          <div class="title">UNDO Pro aktiv</div>
+          <div class="muted">Alle Pro-Funktionen freigeschaltet</div>
+        </div>
+        <form action="{{ url_for('settings_cancel_pro') }}" method="post">
+          <button class="btn" type="submit">Abo kündigen</button>
+        </form>
+      </div>
+    {% else %}
+      <div class="row">
+        <div class="grow">
+          <div class="title">UNDO Free</div>
+          <div class="muted">Hol dir UNDO Pro: WeDo, KI-Feedback, Diagramm inkl.</div>
+        </div>
+        <form action="{{ url_for('settings_subscribe_pro') }}" method="post">
+          <button class="btn" type="submit">Pro abonnieren</button>
+        </form>
+      </div>
+    {% endif %}
+
+    <div class="row">
+      <div class="grow">
+        <div class="title">Persönliche Daten</div>
+        <div class="muted">Name, Beweggrund & Aussicht anpassen</div>
+      </div>
+      <a href="{{ url_for('personal') }}" class="btn">Bearbeiten</a>
+    </div>
+
+    <div class="row">
+  <div class="grow">
+    <div class="title">Sprache</div>
+    <div class="muted">App-Sprache wählen</div>
+  </div>
+  <form action="{{ url_for('settings_language') }}" method="post" style="display:flex;gap:8px;align-items:center">
+  <select id="language" name="language">
+    <option value="de" {{ 'selected' if (g.lang or 'de') == 'de' else '' }}>Deutsch</option>
+    <option value="en" {{ 'selected' if (g.lang or 'de') == 'en' else '' }}>English</option>
+  </select>
+  <button class="btn" type="submit">
+    {{ 'Speichern' if g.lang=='de' else 'Save' }}
+  </button>
+</form>
+</div>
+
+    <div class="row">
+      <div class="grow">
+        <div class="title">Abmelden</div>
+        <div class="muted">Logout von diesem Gerät</div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="btn">Logout</a>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Antwort erneut geben – UNDO{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width:700px;margin:0 auto">
+    <h2>Deine neue Antwort</h2>
+    <p><strong>Frage:</strong> {{ question }}</p>
+    <form method="post" style="margin-top:10px">
+      <textarea name="answer" rows="6" placeholder="Deine neue Antwort..."></textarea>
+      <div class="sp-16"></div>
+      <button type="submit" class="btn">Absenden</button>
+    </form>
+  </div>
+{% endblock %}

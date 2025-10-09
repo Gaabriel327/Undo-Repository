@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Fortschritt – UNDO{% endblock %}
+{% block content %}
+  <div class="card" style="max-width:720px;margin:0 auto">
+    <div class="title">Dein Fortschritt</div>
+    <img src="{{ url_for('radar_user_png', days=30) }}" alt="Radar"
+         style="width:100%;max-width:680px;border-radius:12px;margin-top:12px;border:1px solid #eee">
+  </div>
+{% endblock %}

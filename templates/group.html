@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Deine Gruppen – UNDO{% endblock %}
+
+{% block content %}
+  <h2 class="center">Deine Gruppen</h2>
+
+  <div style="max-width:640px;margin:0 auto">
+    {% if groups and groups|length > 0 %}
+      {% for group in groups %}
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="title" style="word-break:break-word">{{ group.name }}</div>
+            {% if current_user.is_authenticated and (current_user.id|string) == (group.created_by|string) %}
+              <span class="sub" title="Du bist Besitzer·in der Gruppe">Owner</span>
+            {% endif %}
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+            <!-- Öffnen führt zur WEDO-Ansicht wie Today's Undo -->
+            <a class="btn ghost" href="{{ url_for('group_open', group_id=group.id) }}">Öffnen</a>
+
+            <!-- Einladen: Web Share API mit Copy-Fallback -->
+            <button class="btn ghost" type="button"
+                    onclick="shareInvite('{{ (request.url_root | trim('/')) ~ url_for('group_open', group_id=group.id) }}')">
+              Einladen
+            </button>
+
+            <!-- Bearbeiten nur für Ersteller·in -->
+            {% if current_user.is_authenticated and (current_user.id|string) == (group.created_by|string) %}
+              <a class="btn" href="{{ url_for('group_edit', group_id=group.id) }}">Bearbeiten</a>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="sub center">Noch keine Gruppe vorhanden.</p>
+    {% endif %}
+
+    <!-- Neue Gruppe erstellen -->
+    <form action="{{ url_for('create_group') }}" method="POST" style="margin-top:16px;text-align:center">
+      <input type="hidden" name="name" value="Meine Gruppe" />
+      <button class="btn" type="submit">Neue Gruppe erstellen</button>
+    </form>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function shareInvite(link) {
+    try {
+      // Versuche die native Share-API
+      if (navigator.share) {
+        await navigator.share({ title: 'Komm in meine UNDO Gruppe!', text: 'Hier ist der Beitrittslink:', url: link });
+        return;
+      }
+    } catch(e) { /* ignoriere und nutze Fallback */ }
+
+    // Copy-Fallback (Desktop)
+    try {
+      await navigator.clipboard.writeText(link);
+      alert('Einladungslink wurde in die Zwischenablage kopiert:\n' + link);
+    } catch (e) {
+      // Allerletzter Fallback
+      prompt('Teilen wird nicht unterstützt – kopiere den Link:', link);
+    }
+  }
+</script>
+{% endblock %}

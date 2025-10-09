@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Persönliches Profil – UNDO{% endblock %}
+
+{% if show_hint %}
+  <p class="sub">Du kannst diese Daten später über dein Profil anpassen.</p>
+{% endif %}
+
+{% block content %}
+
+  <form method="POST" class="card" style="max-width:520px;margin:0 auto">
+    <label class="title" for="first_name">Vorname</label>
+    <input id="first_name" name="first_name" type="text" value="{{ user.first_name or '' }}" required />
+
+    <div class="sp-16"></div>
+
+    <label class="title" for="birth_date">Geburtsdatum</label>
+    <input id="birth_date" name="birth_date" type="date" value="{{ user.birth_date or '' }}" required />
+
+    <div class="sp-16"></div>
+
+    <label class="title" for="motive">Beweggrund</label>
+    <textarea id="motive" name="motive" rows="3" placeholder="Warum nutzt du UNDO?">{{ user.motive or '' }}</textarea>
+
+    <div class="sp-16"></div>
+
+    <label class="title" for="chance">Aussicht / Ziel</label>
+    <textarea id="chance" name="chance" rows="3" placeholder="Was möchtest du erreichen?">{{ user.chance or '' }}</textarea>
+
+    <div class="sp-16"></div>
+    <button class="btn" type="submit">Speichern & weiter</button>
+    <p class="sub center" style="margin-top:10px;">Du kannst diese Daten später über dein Profil anpassen.</p>
+  </form>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}WeDo – {{ group.name }}{% endblock %}
+
+{% block content %}
+  <div class="container" style="max-width:760px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <a class="btn ghost" href="{{ url_for('groups_list') }}">← Zurück zu WeDo</a>
+      <div class="title">WeDo: {{ group.name }}</div>
+      {% if current_user.is_authenticated and (current_user.id|string) == (group.created_by|string) %}
+        <a class="btn" href="{{ url_for('group_edit', group_id=group.id) }}" style="margin-left:auto">Bearbeiten</a>
+      {% endif %}
+    </div>
+
+    <!-- Today’s WeDo (OBEN) -->
+    <div class="card">
+      <div class="title">Today’s WeDo</div>
+      {% if already_today %}
+        <p class="sub" style="margin-top:6px">Heute bereits beantwortet. {{ next_unlock_label }}</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+          <a class="btn ghost" href="{{ url_for('group_prompt', group_id=group.id) }}?extra=1">Extra-Frage (2 Tokens)</a>
+        </div>
+      {% else %}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <a class="btn" href="{{ url_for('group_prompt', group_id=group.id) }}">Jetzt beantworten</a>
+          <a class="btn ghost" href="{{ url_for('group_prompt', group_id=group.id) }}?extra=1">Extra-Frage (2 Tokens)</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Gruppenfortschritt (UNTEN) -->
+    <div class="card">
+      <div class="title">Gruppen-Fortschritt</div>
+      <p class="sub" style="margin-top:6px">Durchschnitt & Einzelverläufe je Kategorie</p>
+      <img src="{{ radar_url }}" alt="Gruppenradar"
+           style="width:100%;max-width:680px;border-radius:12px;margin-top:12px">
+    </div>
+  </div>
+{% endblock %}

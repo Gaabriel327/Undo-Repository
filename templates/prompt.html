@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}TODAY'S UNDO{% endblock %}
+
+{% block content %}
+  <h2 class="center">
+    {{ "TODAY'S WeDo" if request.args.get('src') == 'wedo' else "TODAY'S UNDO" }}
+  </h2>
+
+  <div class="card" style="font-size:18px;font-weight:500">
+    {{ display_text or question_text }}
+  </div>
+
+  <form action="{{ url_for('prompt') }}" method="post" class="card">
+    {# Extra-Flag sauber weitergeben #}
+    {% if is_extra %}<input type="hidden" name="extra" value="1">{% endif %}
+    <input type="hidden" name="question_text" value="{{ display_text or question_text }}">
+    <input type="hidden" name="mode" value="{{ mode }}">
+    <textarea name="answer" placeholder="Deine Antwort..." rows="6" required></textarea>
+    <div class="sp-16"></div>
+    <button type="submit" class="btn" style="width:100%">Absenden</button>
+  </form>
+{% endblock %}

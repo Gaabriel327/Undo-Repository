@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Dein Feedback – UNDO{% endblock %}
+
+{% block content %}
+     <div class="muted" style="text-align:right;margin-bottom:8px;">
+      {{ (current_user.tokens or 0)|int }} Token
+    </div>
+
+    {% if earned is not none %}
+  <div style="background:#f0fff4;border:1px solid #bde5c8;color:#1c7c3d;
+              padding:10px 12px;border-radius:10px;font-weight:600;margin-bottom:12px;">
+    {% if earned|int > 0 %}
+       +{{ earned|int }} Token{% if earned|int != 1 %}s{% endif %} gutgeschrieben
+    {% else %}
+      Keine Streak-Gutschrift heute.
+    {% endif %}
+    <div class="muted" style="font-weight:500;margin-top:4px;">
+      Kontostand: {{ current_user.tokens|int }} Tokens
+      {% if request.args.get('extra') == '1' %}
+        · Extra-Frage: −1 Token
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+
+    <h2 class="center">Deine Reflexion</h2>
+
+    {#  Kompakt: NUR Feedback anzeigen #}
+    {% if compact %}
+      <div class="title" style="margin-top:12px">Feedback</div>
+      <p style="white-space:pre-wrap">{{ r.feedback }}</p>
+    {% else %}
+      <div class="title" style="margin-top:12px">Frage</div>
+      <p>{{ r.question }}</p>
+
+      <div class="title" style="margin-top:12px">Deine Antwort</div>
+      <p style="white-space:pre-wrap">{{ r.answer }}</p>
+
+      <div class="title" style="margin-top:12px">Feedback</div>
+      <p style="white-space:pre-wrap">{{ r.feedback }}</p>
+    {% endif %}
+
+    <div class="center" style="margin-top:24px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+  <a class="btn ghost" href="{{ url_for('share_card_png', rid=r.id) }}" download>
+    Als Bild speichern
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function shareReflection(rid){
+  try{
+    const res = await fetch(`/api/share_link/${rid}`, {method:'POST'});
+    if(!res.ok){ alert('Konnte Share-Link nicht erstellen.'); return; }
+    const data = await res.json();
+    const link = data.url;
+    if(navigator.share){
+      await navigator.share({title:'Meine UNDO-Reflexion', text:'Hier ist meine Reflexion:', url: link});
+    }else{
+      prompt('Teilen wird nicht unterstützt – kopiere den Link:', link);
+    }
+  }catch(e){
+    alert('Fehler beim Erstellen des Share-Links.');
+  }
+}
+</script>
+{% endblock %}

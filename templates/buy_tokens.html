@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Tokens kaufen – UNDO{% endblock %}
+
+{% block content %}
+  <div class="card center" style="max-width:600px;margin:0 auto">
+    <h2>Tokens kaufen</h2>
+    <form method="post" style="margin-top:16px">
+      <button name="amount" value="3"  class="btn">3 Tokens – 1 €</button>
+      <button name="amount" value="10" class="btn">10 Tokens – 3 €</button>
+      <button name="amount" value="25" class="btn">25 Tokens – 6 €</button>
+    </form>
+  </div>
+{% endblock %}

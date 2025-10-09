@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Willkommen – UNDO{% endblock %}
+
+{% block content %}
+  <!-- Begrüßung -->
+  <h1 class="top">{{ greeting }}, {{ username }}!</h1>
+  <div class="sub" style="color:#6b6b6b;margin-bottom:12px;">Schön, dass Du da bist.</div>
+
+  {% if current_user.streak and current_user.streak > 0 %}
+    <div class="card center" style="max-width:520px;margin:18px auto;">
+      <p style="font-size:64px;font-weight:900;line-height:1;margin:0;">{{ current_user.streak }}</p>
+      <div class="sub" style="margin-top:8px;">Tage Streak</div>
+    </div>
+  {% endif %}
+
+  <!-- TODAY'S UNDO Block (einheitlicher Stil) -->
+  <div class="card" style="max-width:520px;margin:14px auto;text-align:center">
+    <div class="title">Today’s UNDO</div>
+
+    {% if not show_extra %}
+      <!-- Primär-Button -->
+      <form action="{{ url_for('prompt') }}" method="get" style="margin-top:12px">
+        <input type="hidden" name="mode" value="{{ current_mode }}">
+        <button type="submit" class="btn" style="width:100%">Jetzt beantworten</button>
+      </form>
+    {% else %}
+      <!-- Deaktiviert + Hinweis + Extra-Frage im gleichen Look -->
+      <div style="margin-top:12px">
+        <button class="btn" style="width:100%;opacity:.6;cursor:not-allowed" disabled>Heute erledigt</button>
+        {% if next_unlock_label %}
+          <div class="sub" style="margin-top:6px">{{ next_unlock_label }}</div>
+        {% endif %}
+      </div>
+      <form action="{{ url_for('prompt') }}" method="get" style="margin-top:10px">
+        <input type="hidden" name="mode" value="{{ current_mode }}">
+        <input type="hidden" name="extra" value="1">
+        <button type="submit" class="btn ghost" style="width:100%">Extra-Frage (1 Token)</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <!-- Today’s WeDo Block (immer sichtbar; Text variiert) -->
+  <div class="card" style="max-width:520px;margin:14px auto;text-align:center">
+    {% if wedo and wedo.has_groups %}
+      <div class="title">Today’s WeDo</div>
+      <p class="sub" style="margin-top:4px">Gemeinsam antworten – direkt hier starten.</p>
+
+      {% if wedo.count == 1 and wedo.single_group_id %}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px">
+          {% if wedo.single_group_already %}
+            <a class="btn ghost" href="{{ url_for('group_open', group_id=wedo.single_group_id) }}">Zur Gruppe</a>
+          {% else %}
+            <a class="btn" href="{{ url_for('group_prompt', group_id=wedo.single_group_id) }}">Jetzt WeDo beantworten</a>
+            <a class="btn ghost" href="{{ url_for('group_open', group_id=wedo.single_group_id) }}">Gruppen-Übersicht</a>
+          {% endif %}
+        </div>
+      {% else %}
+        <div style="margin-top:10px">
+          <a class="btn" href="{{ url_for('groups_list') }}">Zu meinen Gruppen ({{ wedo.count }})</a>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="title">Erstelle deine Gruppe</div>
+      <p class="sub" style="margin-top:4px">Starte dein erstes WeDo mit anderen.</p>
+      <div style="margin-top:10px">
+        <a class="btn" href="{{ url_for('groups_list') }}">Gruppe erstellen</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Nudge (falls fällig) -->
+  {% if motive_due %}
+    <div class="card" style="max-width:520px;margin:14px auto;text-align:center">
+      <div class="title">Passt dein Motiv & deine Chance noch?</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px">
+        <a class="btn" href="{{ url_for('motive_review_now') }}">Jetzt prüfen</a>
+        <form action="{{ url_for('motive_ack') }}" method="post">
+          <button class="btn ghost" type="submit" name="action" value="snooze">Erinnerung aussetzen</button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
