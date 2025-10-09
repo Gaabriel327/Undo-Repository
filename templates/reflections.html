@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Reflections – UNDO{% endblock %}
+
+<div class="muted" style="text-align:right;margin:8px 0;">
+  {{ (current_user.tokens or 0)|int }} Token
+</div>
+
+{% block content %}
+  <h2 class="center">Deine Reflections</h2>
+
+  {% if reflections and reflections|length > 0 %}
+    {% for r in reflections %}
+      <div class="card">
+        <div class="title" style="margin-bottom:6px">{{ r.question }}</div>
+        <div class="sub">{{ r.timestamp.strftime("%d.%m.%Y %H:%M") }} · {{ r.mode or "" }}</div>
+        <p style="margin-top:10px">{{ r.answer }}</p>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+          <a class="btn ghost" href="{{ url_for('feedback_view', rid=r.id) }}">Details</a>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="sub center">Noch keine Einträge.</p>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function shareReflection(rid){
+  try{
+    const res = await fetch(`/api/share_link/${rid}`, {method:'POST'});
+    if(!res.ok){ alert('Konnte Share-Link nicht erstellen.'); return; }
+    const data = await res.json();
+    const link = data.url;
+    if(navigator.share){
+      await navigator.share({title:'Meine UNDO-Reflexion', text:'Hier ist meine Reflexion:', url: link});
+    }else{
+      prompt('Teilen wird nicht unterstützt – kopiere den Link:', link);
+    }
+  }catch(e){
+    alert('Fehler beim Erstellen des Share-Links.');
+  }
+}
+</script>
+{% endblock %}

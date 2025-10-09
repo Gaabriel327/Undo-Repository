@@ -1,58 +1,9 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>Dein Fortschritt – UNDO</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 40px 20px 80px;
-            background-color: #fff;
-        }
-
-        h2 {
-            font-size: 24px;
-            margin-bottom: 20px;
-        }
-
-        img {
-            max-width: 90%;
-            height: auto;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-       
-      nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #fff;
-            border-top: 1px solid #ddd;
-            padding: 12px 0;
-            display: flex;
-            justify-content: space-around;
-        }
-        nav a {
-            text-decoration: none;
-            color: black;
-            font-weight: bold;
-            font-size: 16px;
-        }
-        
-    </style>
-</head>
-<body>
-    <h2>Dein Fortschrittsdiagramm</h2>
-    <img src="{{ image_url }}" alt="Radar Chart">
-
-   <nav>
-        <a href="/">Home</a>
-        <a href="/reflection">Reflection</a>
-        <a href="/profile">Profile</a>
-    </nav>
-
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Fortschritt – UNDO{% endblock %}
+{% block content %}
+  <div class="card" style="max-width:720px;margin:0 auto">
+    <div class="title">Dein Fortschritt</div>
+    <img src="{{ url_for('radar_user_png', days=30) }}" alt="Radar"
+         style="width:100%;max-width:680px;border-radius:12px;margin-top:12px;border:1px solid #eee">
+  </div>
+{% endblock %}

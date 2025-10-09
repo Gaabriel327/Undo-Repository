@@ -1,109 +1,83 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <title>Willkommen – UNDO</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root{
-      --bg:#ffffff; --fg:#0a0a0a; --muted:#6b6b6b; --line:#e9e9e9;
-      --radius:16px; --shadow:0 6px 20px rgba(0,0,0,.06);
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      background:var(--bg); color:var(--fg);
-      padding:32px 18px 110px; /* Platz für Bottom-Nav */
-      text-align:center;
-    }
+{% extends "base.html" %}
+{% block title %}Willkommen – UNDO{% endblock %}
 
-    h1{ font-size:24px; margin:0 0 8px; font-weight:800; letter-spacing:.2px; }
-    .sub{ color:var(--muted); font-size:14px; margin-bottom:10px; }
-
-    .streak-wrap{
-      margin:26px auto; max-width:520px;
-      padding:28px 20px; border:1px solid var(--line); border-radius:var(--radius);
-      background:#fff; box-shadow:var(--shadow);
-    }
-    .streak-number{ font-size:64px; font-weight:900; line-height:1; margin:0; }
-    .streak-label{ margin-top:8px; font-size:16px; color:var(--muted); font-weight:600; }
-
-    .main-button, .ghost-button{
-      display:inline-block; width:100%; max-width:320px;
-      padding:14px 18px; border-radius:12px; font-weight:800; font-size:16px;
-      cursor:pointer; box-shadow:var(--shadow); transition:transform .06s ease;
-    }
-    .main-button{ border:none; background:#000; color:#fff; }
-    .main-button:hover{ filter:brightness(0.95); }
-    .main-button:active{ transform:translateY(1px); }
-
-    .main-button[disabled]{
-      background:#cfcfcf; color:#555; cursor:not-allowed; border:1px solid #bbb;
-      box-shadow:none;
-    }
-    .btn-sub{
-      display:block; font-weight:600; font-size:12px; margin-top:4px; color:#555;
-    }
-
-    .ghost-button{
-      margin-top:10px; background:#fff; color:#000; border:1px solid #000;
-    }
-    .ghost-button:active{ transform:translateY(1px); }
-
-    nav{
-      position:fixed; bottom:0; left:0; right:0;
-      background:#fff; border-top:1px solid var(--line);
-      padding:12px 0; display:flex; justify-content:space-around;
-    }
-    nav a{ text-decoration:none; color:#000; font-weight:700; font-size:16px; }
-
-    @media (min-width:720px){
-      body{ padding:40px 22px 120px; }
-    }
-  </style>
-</head>
-<body>
-
-  <h1>Hallo, {{ username }}</h1>
-  <div class="sub">Schön, dass Du da bist.</div>
+{% block content %}
+  <!-- Begrüßung -->
+  <h1 class="top">{{ greeting }}, {{ username }}!</h1>
+  <div class="sub" style="color:#6b6b6b;margin-bottom:12px;">Schön, dass Du da bist.</div>
 
   {% if current_user.streak and current_user.streak > 0 %}
-    <div class="streak-wrap">
-      <p class="streak-number">{{ current_user.streak }}</p>
-      <div class="streak-label">Tage Streak</div>
+    <div class="card center" style="max-width:520px;margin:18px auto;">
+      <p style="font-size:64px;font-weight:900;line-height:1;margin:0;">{{ current_user.streak }}</p>
+      <div class="sub" style="margin-top:8px;">Tage Streak</div>
     </div>
   {% endif %}
 
-  {# TODAY'S UNDO #}
-  {% if not show_extra %}
-    <!-- Noch NICHT beantwortet: Button aktiv -->
-    <form action="{{ url_for('prompt') }}" method="get" style="margin-top:14px;">
-      <input type="hidden" name="mode" value="{{ current_mode }}">
-      <button type="submit" class="main-button">TODAY'S UNDO</button>
-    </form>
-    
-{% else %}
-  <!-- Heute bereits beantwortet: Button grau + dynamischer Hinweis -->
-  <button class="main-button" disabled>
-    TODAY'S UNDO
-    {% if next_unlock_label %}
-      <span class="btn-sub">{{ next_unlock_label }}</span>
+  <!-- TODAY'S UNDO Block (einheitlicher Stil) -->
+  <div class="card" style="max-width:520px;margin:14px auto;text-align:center">
+    <div class="title">Today’s UNDO</div>
+
+    {% if not show_extra %}
+      <!-- Primär-Button -->
+      <form action="{{ url_for('prompt') }}" method="get" style="margin-top:12px">
+        <input type="hidden" name="mode" value="{{ current_mode }}">
+        <button type="submit" class="btn" style="width:100%">Jetzt beantworten</button>
+      </form>
+    {% else %}
+      <!-- Deaktiviert + Hinweis + Extra-Frage im gleichen Look -->
+      <div style="margin-top:12px">
+        <button class="btn" style="width:100%;opacity:.6;cursor:not-allowed" disabled>Heute erledigt</button>
+        {% if next_unlock_label %}
+          <div class="sub" style="margin-top:6px">{{ next_unlock_label }}</div>
+        {% endif %}
+      </div>
+      <form action="{{ url_for('prompt') }}" method="get" style="margin-top:10px">
+        <input type="hidden" name="mode" value="{{ current_mode }}">
+        <input type="hidden" name="extra" value="1">
+        <button type="submit" class="btn ghost" style="width:100%">Extra-Frage (1 Token)</button>
+      </form>
     {% endif %}
-  </button>
+  </div>
 
-  <!-- Extra-Frage (1 Token) -->
-  <form action="{{ url_for('prompt') }}" method="get">
-    <input type="hidden" name="mode" value="{{ current_mode }}">
-    <input type="hidden" name="extra" value="1">
-    <button type="submit" class="ghost-button">Extra-Frage (1 Token)</button>
-  </form>
-{% endif %}
+  <!-- Today’s WeDo Block (immer sichtbar; Text variiert) -->
+  <div class="card" style="max-width:520px;margin:14px auto;text-align:center">
+    {% if wedo and wedo.has_groups %}
+      <div class="title">Today’s WeDo</div>
+      <p class="sub" style="margin-top:4px">Gemeinsam antworten – direkt hier starten.</p>
 
-  <nav>
-    <a href="{{ url_for('index') }}">Home</a>
-    <a href="{{ url_for('reflection') }}">Reflection</a>
-    <a href="{{ url_for('profile') }}">Profile</a>
-  </nav>
+      {% if wedo.count == 1 and wedo.single_group_id %}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px">
+          {% if wedo.single_group_already %}
+            <a class="btn ghost" href="{{ url_for('group_open', group_id=wedo.single_group_id) }}">Zur Gruppe</a>
+          {% else %}
+            <a class="btn" href="{{ url_for('group_prompt', group_id=wedo.single_group_id) }}">Jetzt WeDo beantworten</a>
+            <a class="btn ghost" href="{{ url_for('group_open', group_id=wedo.single_group_id) }}">Gruppen-Übersicht</a>
+          {% endif %}
+        </div>
+      {% else %}
+        <div style="margin-top:10px">
+          <a class="btn" href="{{ url_for('groups_list') }}">Zu meinen Gruppen ({{ wedo.count }})</a>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="title">Erstelle deine Gruppe</div>
+      <p class="sub" style="margin-top:4px">Starte dein erstes WeDo mit anderen.</p>
+      <div style="margin-top:10px">
+        <a class="btn" href="{{ url_for('groups_list') }}">Gruppe erstellen</a>
+      </div>
+    {% endif %}
+  </div>
 
-</body>
-</html>
+  <!-- Nudge (falls fällig) -->
+  {% if motive_due %}
+    <div class="card" style="max-width:520px;margin:14px auto;text-align:center">
+      <div class="title">Passt dein Motiv & deine Chance noch?</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px">
+        <a class="btn" href="{{ url_for('motive_review_now') }}">Jetzt prüfen</a>
+        <form action="{{ url_for('motive_ack') }}" method="post">
+          <button class="btn ghost" type="submit" name="action" value="snooze">Erinnerung aussetzen</button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

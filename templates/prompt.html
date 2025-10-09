@@ -1,101 +1,22 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>TODAY'S UNDO</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #fff;
-            color: #000;
-            padding: 20px;
-            padding-bottom: 100px; /* Platz für Navbar */
-        }
-        .container {
-            max-width: 700px;
-            margin: auto;
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 8px;
-            font-size: 22px;
-        }
-        .mode-badge {
-            text-align: center;
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 18px;
-        }
-        .question-box {
-            background: #f7f7f7;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: 500;
-        }
-        textarea {
-            width: 100%;
-            min-height: 120px;
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid #ccc;
-            font-size: 16px;
-            resize: vertical;
-            margin-bottom: 20px;
-        }
-        button {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 10px;
-            background-color: #000;
-            color: #fff;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        button:hover { background-color: #333; }
-        nav {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: #fff;
-            border-top: 1px solid #ddd;
-            padding: 12px 0;
-            display: flex;
-            justify-content: space-around;
-        }
-        nav a {
-            text-decoration: none;
-            color: black;
-            font-weight: bold;
-            font-size: 16px;
-        }
-    </style>
-</head>
-<body>
-  <div class="container">
-    <h2>TODAY'S UNDO</h2>
+{% extends "base.html" %}
+{% block title %}TODAY'S UNDO{% endblock %}
 
-    <div class="question-box">
-      {{ display_text or question.text }}
-    </div>
+{% block content %}
+  <h2 class="center">
+    {{ "TODAY'S WeDo" if request.args.get('src') == 'wedo' else "TODAY'S UNDO" }}
+  </h2>
 
-    <!-- Wichtig: action mit gleicher Query -> behält ?mode=... (&extra=1 falls gesetzt) -->
-<form action="{{ url_for('prompt') }}" method="post">
-  <input type="hidden" name="question_id" value="{{ question.id }}">
-  <input type="hidden" name="question_text" value="{{ display_text or question.text }}">
-  <input type="hidden" name="mode" value="{{ mode }}">
-  <textarea name="answer" placeholder="Deine Antwort..."></textarea>
-  <button type="submit">Absenden</button>
-</form>
+  <div class="card" style="font-size:18px;font-weight:500">
+    {{ display_text or question_text }}
   </div>
 
-  <nav>
-    <a href="/">Home</a>
-    <a href="/reflection">Reflection</a>
-    <a href="/profile">Profile</a>
-  </nav>
-</body>
-</html>
+  <form action="{{ url_for('prompt') }}" method="post" class="card">
+    {# Extra-Flag sauber weitergeben #}
+    {% if is_extra %}<input type="hidden" name="extra" value="1">{% endif %}
+    <input type="hidden" name="question_text" value="{{ display_text or question_text }}">
+    <input type="hidden" name="mode" value="{{ mode }}">
+    <textarea name="answer" placeholder="Deine Antwort..." rows="6" required></textarea>
+    <div class="sp-16"></div>
+    <button type="submit" class="btn" style="width:100%">Absenden</button>
+  </form>
+{% endblock %}

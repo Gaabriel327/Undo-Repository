@@ -7,22 +7,23 @@ Enthält:
 - Token-Abbuchung pro Feature
 - Streak-Belohnungen (3/5/7 → 1/2/3 Tokens; am 7. Tag Reset)
 - GPT-Feedback (gpt-4o-mini) + Wochen-/Monats-Report + Antwortvergleich
-- Robuste Fallbacks ohne KI, falls KEY/SDK/API nicht verfügbar
+- Gruppen-Fragegenerator (WeDo) + Solo-Fragegenerator
+- Robuste Fallbacks ohne KI
 
 Integration in Flask (Beispiel):
     from pro_feedback_engine import (
         is_pro, FEATURE, require_feature_or_charge,
-        update_streak_and_grant_tokens, ai_generate_feedback
+        update_streak_and_grant_tokens, ai_generate_feedback,
+        ai_generate_group_question, ai_generate_question
     )
-
-    # Nach dem Absenden einer Antwort:
-    feedback_text = ai_generate_feedback(q.text, answer, current_user.motive, current_user.chance, mode=current_mode)
-    update_streak_and_grant_tokens(db, current_user)
 """
 
 from __future__ import annotations
 
+import re
 import os
+import time
+import random
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 
@@ -32,15 +33,44 @@ try:
 except Exception:
     OpenAI = None  # SDK nicht installiert
 
-import time
-import random
 
-def _call_openai_safe(fn, *, max_retries=2, timeout_s=6.0, fallback_text: str = None):
+# ------------------------------------------------------------
+# Export-Liste (für "from pro_feedback_engine import *")
+# ------------------------------------------------------------
+# --- ganz oben in pro_feedback_engine.py, nach Imports/Utilities ---
+__all__ = [
+    "is_pro",
+    "FEATURE",
+    "require_feature_or_charge",
+    "update_streak_and_grant_tokens",
+    "ai_generate_feedback",
+    "ai_weekly_report",
+    "ai_monthly_report",
+    "ai_answer_compare",
+    "ai_generate_question",
+    "ai_generate_group_question",  # <-- neu exportiert
+]
+
+
+# ------------------------------------------------------------
+# OpenAI Helper
+# ------------------------------------------------------------
+def _ensure_openai_client() -> "OpenAI":
+    """Erzeugt einen OpenAI-Client oder wirft RuntimeError, wenn Key/SDK fehlt."""
+    if OpenAI is None:
+        raise RuntimeError("OpenAI SDK nicht installiert. `pip install openai>=1.40`")
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY fehlt (in .env/Umgebung setzen).")
+    return OpenAI(api_key=api_key)
+
+
+def _call_openai_safe(fn, *, max_retries: int = 2, timeout_s: float = 6.0, fallback_text: Optional[str] = None) -> str:
     """
     Führt eine OpenAI-Operation robust aus:
-    - kurzer Timeout (Client-seitig)
+    - Soft-Timeout je Aufruf
     - wenige Retries bei flüchtigen Fehlern
-    - liefert bei Fehlern fallback_text (wenn gesetzt), sonst wirft Exception
+    - bei Fehlern -> fallback_text (falls gesetzt), sonst Exception
     """
     last_err = None
     for attempt in range(max_retries + 1):
@@ -49,77 +79,19 @@ def _call_openai_safe(fn, *, max_retries=2, timeout_s=6.0, fallback_text: str = 
             return fn()
         except Exception as e:
             last_err = e
-            # kurzer Backoff (50–200ms), dann nochmal
-            time.sleep(0.05 + random.random() * 0.15)
+            time.sleep(0.05 + random.random() * 0.15)  # leichter Backoff
         finally:
-            # weiche Timeouts: wenn die Funktion zu lang braucht, abbrechen
             if (time.time() - start) > timeout_s:
                 last_err = TimeoutError("OpenAI call exceeded soft timeout")
-        # weitere Versuche, falls noch übrig
+        # geht in nächsten Versuch
     if fallback_text is not None:
         return fallback_text
-    raise last_err
+    raise last_err if last_err else RuntimeError("OpenAI call failed")
 
-def ai_generate_question(motive: str, chance: str, mode: str, seed_texts: list[str]) -> str:
-    """
-    Liefert eine kurze, natürlich klingende Reflexionsfrage, die Motiv & Chance subtil einwebt.
-    - mode: "morning" | "evening"
-    - seed_texts: statische Alternativen, falls KI ausfällt
-    """
-    motive = (motive or "").strip()
-    chance = (chance or "").strip()
-    mode_label = "Morgen" if (mode or "").lower() == "morning" else "Abend"
 
-    # Fallback-Frage (neutral + leicht personalisiert)
-    fallback = random.choice(seed_texts) if seed_texts else "Worauf richtest du heute deinen Blick – ganz bewusst?"
-    if motive or chance:
-        fallback = f"{fallback} (mit Blick auf: {motive or 'dein Warum'} / {chance or 'dein Ziel'})"
-
-    try:
-        client = _ensure_openai_client()
-
-        system = (
-            "Du formulierst eine einzige, kurze Reflexionsfrage im UNDO-Stil. "
-            "Sie soll warm, konkret und natürlich klingen – kein Listenstil, kein Coaching-Jargon, keine Emojis. "
-            "Beziehe Motiv (Warum) und Chance (Ziel) sehr subtil ein. "
-            "Max. 22 Wörter. Gib NUR die Frage zurück, sonst nichts."
-            "Direkt darunter, nach einer Leerzeile, schreibe eine kurze Zeile mit 'UNDO Impuls:'"
-        )
-        
-        user = (
-            f"Modus: {mode_label}\n"
-            f"Motiv: {motive or '-'}\n"
-            f"Chance: {chance or '-'}\n"
-            "Kontext: Eine tägliche Selbstreflexion, die zu kleinen bewussten Veränderungen einlädt."
-        )
-
-        def _do():
-            resp = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "system", "content": system},
-                          {"role": "user", "content": user}],
-                temperature=0.4,     # weniger streuend
-                max_tokens=50,
-            )
-            text = (resp.choices[0].message.content or "").strip()
-            # kleine Hygiene
-            text = text.split("\n")[0].strip()
-            if text.endswith("?") is False:
-                text += "?"
-            # harte Längenbremse
-            if len(text) > 180:
-                text = text[:180].rstrip() + "?"
-            return text
-
-        return _call_openai_safe(_do, fallback_text=fallback)
-
-    except Exception:
-        return fallback
-
-# ===========================
+# ------------------------------------------------------------
 # Feature-Definition & Preise
-# ===========================
-
+# ------------------------------------------------------------
 class FEATURE:
     """Enum-ähnliche Sammlung der Feature-Keys."""
     WEDO = "wedo"                          # Nur Pro
@@ -128,31 +100,31 @@ class FEATURE:
     EXTRA_QUESTION = "extra_question"      # Beide 1 Token
     WEEKLY_REPORT = "weekly_report"        # Pro frei, Free: 2 Tokens
     MONTHLY_REPORT = "monthly_report"      # Pro frei, Free: 4 Tokens
+    EXTRA_WEDO = "extra_wedo"
 
-
-# Tokenpreise (Free) & Pro-Einschränkungen
 TOKEN_PRICES = {
     FEATURE.RADAR: 3,           # Free
     FEATURE.ANSWER_COMPARE: 1,  # Pro/Free beide 1
     FEATURE.EXTRA_QUESTION: 1,  # Pro/Free beide 1
     FEATURE.WEEKLY_REPORT: 2,   # Free
     FEATURE.MONTHLY_REPORT: 4,  # Free
+    FEATURE.EXTRA_WEDO: 2,
 }
 
 PRO_FREE = {
     FEATURE.WEDO: "pro_only",               # nur Pro
-    FEATURE.RADAR: "included_in_pro",       # pro: 0 Token, free: 3 Tokens
+    FEATURE.RADAR: "included_in_pro",       # Pro 0 Token, Free: 3 Tokens
     FEATURE.ANSWER_COMPARE: "token_for_both",
     FEATURE.EXTRA_QUESTION: "token_for_both",
     FEATURE.WEEKLY_REPORT: "included_in_pro",
     FEATURE.MONTHLY_REPORT: "included_in_pro",
+    FEATURE.EXTRA_WEDO: "token_for_both",
 }
 
 
-# ===========================
+# ------------------------------------------------------------
 # Utility
-# ===========================
-
+# ------------------------------------------------------------
 def is_pro(user) -> bool:
     """Prüft, ob Pro aktiv ist – via user.subscription == 'pro' ODER Zeitfenster user.pro_until."""
     if (user.subscription or "").lower() == "pro":
@@ -168,39 +140,6 @@ def is_pro(user) -> bool:
             return True
     return False
 
-
-def _ensure_openai_client() -> "OpenAI":
-    """Erzeugt einen OpenAI-Client oder wirft RuntimeError, wenn Key/SDK fehlt."""
-    if OpenAI is None:
-        raise RuntimeError("OpenAI SDK nicht installiert. `pip install openai>=1.40`")
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY fehlt (in .env/Umgebung setzen).")
-    return OpenAI(api_key=api_key)
-
-
-def _fallback_feedback(question_text: str, answer_text: str, motive: str, chance: str) -> str:
-    """Regelbasiertes, kurzes Fallback-Feedback (ohne KI), im UNDO-Fließtext-Stil (ohne Liste)."""
-    ans = (answer_text or "").strip()
-    tight = len(ans) < 40
-    lacks_time = not any(k in ans.lower() for k in ["heute", "morgen", "uhr"])
-
-    p1 = "Das klingt bedeutsam – und du gehst achtsam damit um. Zwischen den Zeilen zeigt sich, was dir wichtig ist."
-    mline = " Dein Warum schimmert mit." if (motive or "").strip() else ""
-    cline = f" {chance} bleibt als Richtung spürbar." if (chance or "").strip() else ""
-    p2_parts = []
-    if tight:
-        p2_parts.append("Vielleicht hilft es, deinen Gedanken noch zwei Sätze Raum zu geben.")
-    if lacks_time:
-        p2_parts.append("Ein kleines Zeitfenster heute kann den Knoten lockern.")
-    p2 = (" ".join(p2_parts) or "Vielleicht trägt ein ruhiger Perspektivwechsel weiter.") + mline + cline
-    impulse = "UNDO-Impuls: Einmal kurz anhalten, atmen, neu ausrichten – nur so lange, bis es leise klickt."
-    return f"{p1}\n\n{p2}\n\n{impulse}"
-
-
-# ===========================
-# Kostenberechnung & Abbuchung
-# ===========================
 
 def feature_cost_for_user(user, feature: str) -> Tuple[bool, int, str]:
     """
@@ -251,10 +190,9 @@ def require_feature_or_charge(db, user, feature: str) -> Tuple[bool, str]:
     return True, f"{cost} Token(s) abgebucht."
 
 
-# ===========================
+# ------------------------------------------------------------
 # Streak-Logik (3/5/7 & Reset)
-# ===========================
-
+# ------------------------------------------------------------
 def update_streak_and_grant_tokens(db, user, now: Optional[datetime] = None) -> None:
     """
     Aktualisiert Streak basierend auf user.last_reflection_date.
@@ -295,55 +233,76 @@ def update_streak_and_grant_tokens(db, user, now: Optional[datetime] = None) -> 
         raise
 
 
-# ===========================
+# ------------------------------------------------------------
+# Fallback-Feedback (regelbasiert, UNDO-Stil)
+# ------------------------------------------------------------
+def _fallback_feedback(question_text: str, answer_text: str, motive: str, chance: str) -> str:
+    """Kurzes Fallback-Feedback im UNDO-Fließtext-Stil (ohne Listen)."""
+    ans = (answer_text or "").strip()
+    tight = len(ans) < 40
+    lacks_time = not any(k in ans.lower() for k in ["heute", "morgen", "uhr"])
+
+    p1 = "Das klingt bedeutsam – und du gehst achtsam damit um. Zwischen den Zeilen zeigt sich, was dir wichtig ist."
+    hint_m = " Dein Warum schimmert mit." if (motive or "").strip() else ""
+    hint_c = f" {chance} bleibt als Richtung spürbar." if (chance or "").strip() else ""
+    p2_parts = []
+    if tight:
+        p2_parts.append("Vielleicht hilft es, deinen Gedanken noch zwei Sätze Raum zu geben.")
+    
+    if lacks_time:
+        p2_parts.append("Ein kleines Zeitfenster heute kann den Knoten lockern.")
+    
+    p2 = (" ".join(p2_parts) or "Vielleicht trägt ein leiser Perspektivwechsel weiter.") + hint_m + hint_c
+    impulse = "UNDO-Impuls: Einmal kurz anhalten, atmen, neu ausrichten – nur so lange, bis es leise klickt."
+    return f"{p1}\n\n{p2}\n\n{impulse}"
+
+
+# ------------------------------------------------------------
 # KI-Funktionen (GPT-4o-mini) – UNDO-Stil
-# ===========================
+# ------------------------------------------------------------
+# def ai_generate_feedback(..., mode: str | None = None, ) -> str:
 
 def ai_generate_feedback(
     question_text: str,
     answer_text: str,
     motive: str,
     chance: str,
-    mode: str | None = None,  # "morning" | "evening" | None
+    mode: str | None = None,   # "morning" | "evening" | None
+    *,
+    impulse_label: str = "UNDO-Impuls"   # <— Default: Solo weiterhin UNDO-Impuls
 ) -> str:
     """
     UNDO-Feedback: 2 kurze Absätze + optionaler „UNDO-Impuls“ (eine Zeile).
     Kein Listenstil, keine Emojis, kein Coaching-Jargon.
-    Motive & Chance werden weich eingebunden. Ton passt sich dem Modus an.
+    Motive & Chance weich eingebunden. Ton passt sich dem Modus an.
     """
     def _tone_for_mode(m: str | None) -> str:
         if m == "morning":
             return ("Klinge leicht und anhebend; gib Zuversicht für den Start in den Tag. "
                     "Halte den Fokus klein und machbar.")
         if m == "evening":
-            return ("Klinge entlastend und freundlich; würdige den Tag und lenke sanft den Blick "
+            return ("Klinge entlastend und freundlich; würdige den Tag und richte sanft den Blick "
                     "auf einen ruhigen Abschluss oder ein leises Weiter.")
         return "Klinge ruhig, klar und zugewandt."
 
     def _soft_fallback() -> str:
-        p1 = ("Das klingt bedeutsam – und du gehst umsichtig damit um. "
-              "Zwischen den Zeilen steckt bereits, was dir wichtig ist.")
-        hint_m = " Dein Warum schimmert durch." if (motive or "").strip() else ""
-        hint_c = f" {chance} bleibt als Richtung spürbar." if (chance or "").strip() else ""
-        p2 = ("Vielleicht hilft kein größeres Tempo, sondern ein sanfter Wechsel der Perspektive: "
-              "ein kleiner Schritt außerhalb der gewohnten Spur." + hint_m + hint_c)
-        impulse = "UNDO-Impuls: Heute einmal kurz anhalten, atmen, neu ausrichten – nur so lange, bis es leise klickt."
-        return f"{p1}\n\n{p2}\n\n{impulse}"
-
+        return _fallback_feedback(question_text, answer_text, motive, chance)
+    
     try:
         client = _ensure_openai_client()
 
         system = (
             "Schreibe wie ein einfühlsamer, klarer Mensch im UNDO-Stil. "
             "Maximal ~120 Wörter. "
-            "Keine Bulletpoints, keine nummerierten Listen, keine Emojis, kein Fachjargon. "
+            "Keine Bulletpoints/Nummern, keine Emojis, kein Fachjargon. "
             "Kein Dozieren und keine Wiederholung der Eingaben. "
             "Ziel: Verstehen spiegeln + eine sanfte Richtungsänderung anstoßen. "
+            "Spreche den User stets im du an, also keine Ich-Perspektive in den Fragen"
             f"{_tone_for_mode(mode)} "
             "Struktur:\n"
             "Absatz 1: Kurzes Spiegeln der Bedeutung & des Moments.\n"
             "Absatz 2: Neue, kleine Perspektive, die aus Gewohnheiten führt (keine Checkliste).\n"
-            "Schluss (optional, eine einzige Zeile): 'UNDO-Impuls: <eine sehr kleine Einladung in einem Satz>'."
+            "Schluss Eine Zeile unter dem Rest: 'UNDO-Impuls: <eine sehr kleine Einladung in einem Satz>'."
         )
 
         mode_hint = f"Modus: {mode}" if mode else "Modus: unbekannt"
@@ -358,26 +317,26 @@ def ai_generate_feedback(
             "Vermeide Listen, Bindestrichreihen und Floskeln."
         )
 
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user_msg},
-            ],
-            temperature=0.55,
-            max_tokens=260,
-        )
-        text = (resp.choices[0].message.content or "").strip()
+        def _do():
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_msg},
+                ],
+                temperature=0.55,
+                max_tokens=260,
+            )
+            text = (resp.choices[0].message.content or "").strip()
+            # Listenoptik entfernen
+            if any(b in text for b in ("\n- ", "\n• ", "\n1.", "\n2.", "\n3.")):
+                text = text.replace("\n- ", "\n").replace("\n• ", "\n")
+                text = text.replace("\n1.", "\n").replace("\n2.", "\n").replace("\n3.", "\n")
+            return text
 
-        # Failsafes: Keine Listenoptik
-        if any(b in text for b in ("\n- ", "\n• ", "\n1.", "\n2.", "\n3.")):
-            text = text.replace("\n- ", "\n").replace("\n• ", "\n")
-            text = text.replace("\n1.", "\n").replace("\n2.", "\n").replace("\n3.", "\n")
-
-        # Fallback, falls zu leer oder falsches Format zurückkommt
+        text = _call_openai_safe(_do, fallback_text=_soft_fallback())
         if len(text.split()) < 8 or "Feedback:" in text:
             return _soft_fallback()
-
         return text
 
     except Exception:
@@ -451,7 +410,7 @@ def ai_answer_compare(question_text: str, previous_answer: str, current_answer: 
             "Zwei Sätze, keine Liste. "
             "Erstes: kurz spiegeln, was neu/gewachsen ist. "
             "Zweites: sanft die Richtung halten. "
-            "Schluss: 'Dein UNDO: ...' als Ein-Satz-Zeile zwei Zeilen unter dem Rest"
+            "Optional: Schlusszeile 'UNDO-Impuls: ...' (eine Zeile)."
         )
         user = (
             f"Frage: {question_text}\n"
@@ -473,3 +432,145 @@ def ai_answer_compare(question_text: str, previous_answer: str, current_answer: 
         return text if len(text.split()) >= 6 else "Du bist klarer geworden – und das trägt. UNDO-Impuls: Bleib klein, aber täglich sichtbar."
     except Exception:
         return "Du bist klarer geworden – und das trägt. UNDO-Impuls: Bleib klein, aber täglich sichtbar."
+
+
+# ------------------------------------------------------------
+# Fragegeneratoren
+# ------------------------------------------------------------
+def ai_generate_group_question(
+    motive: str | None,
+    chance: str | None,
+    mode: str | None = None,          # "morning" | "evening" optional
+    seed_texts: List[str] | None = None
+) -> str:
+    """
+    Liefert GENAU EINE Gruppenfrage im UNDO/WeDo-Stil.
+    - 1 Satz (8–18 Wörter), „wir“-Perspektive, warm und klar.
+    - Motive/Chance nur subtil als Hintergrund.
+    - Modus kann den Ton (Start/Abschluss) andeuten.
+    - Fallback nutzt Seeds.
+    """
+    default_seeds_morning = [
+         "Womit beginnt ihr heute, damit es sich leicht und stimmig anfühlt?",
+         "Welche kleine Entscheidung gibt eurem Tag heute einen guten Ton?",
+         "Worauf wollt ihr euch gemeinsam einlassen, damit Bewegung entsteht?",
+         "Was braucht euer Miteinander heute, um ruhig in Gang zu kommen?"
+    ]
+    default_seeds_evening = [
+         "Welcher Moment hat euch heute ein Stück näher zusammengebracht?",
+         "Wofür wollt ihr euch heute gemeinsam Anerkennung geben?",
+         "Was dürft ihr heute abschließen, damit es ruhiger in euch wird?",
+         "Welche kleine Sache hat heute einen echten Unterschied gemacht?"
+    ]
+
+    seeds = (seed_texts or [])[:]
+    if not seeds:
+        seeds = default_seeds_evening if (mode == "evening") else default_seeds_morning
+
+    motive_s = (motive or "").strip()
+    chance_s = (chance or "").strip()
+
+    # Versuche KI
+    try:
+        client = _ensure_openai_client()
+        system = (
+            "Du bist ein empathischer Coach im UNDO/WeDo-Stil. "
+            "Gib genau EINE Frage, ein einzelner Satz (8–18 Wörter), "
+            "in ihr-Perspektive, warm und klar. "
+            "Kein Listenstil, keine Befehle, kein Fachjargon, keine Wiederholung der Nutzerdaten."
+        )
+        user_msg = (
+            f"Modus: {mode or 'unbekannt'}\n"
+            f"Gruppen-Motive: {motive_s or '-'}\n"
+            f"Gruppen-Chance: {chance_s or '-'}\n"
+            "Formatiere GENAU: nur 1 Satz, sonst nichts."
+        )
+
+        def _do():
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_msg},
+                ],
+                temperature=0.5,
+                max_tokens=60,
+            )
+            text = (resp.choices[0].message.content or "").strip()
+            text = text.split("\n")[0].strip()
+            # minimale Normalisierung
+            if not text.endswith("?"):
+                text = text.rstrip(". ") + "?"
+            return text
+
+        return _call_openai_safe(_do, fallback_text=None)  # wenn KI patzt -> unten Seeds
+
+    except Exception:
+        pass
+
+    # Fallback Seeds, minimal personalisiert
+    base = random.choice(seeds)
+    if motive_s or chance_s:
+        # nur eine leichte Andeutung
+        if "heute" in base.lower():
+            base = base.replace("heute", "heute – passend zu unserem Warum")
+    if not base.endswith("?"):
+        base += "?"
+    return base
+
+
+def ai_generate_question(motive: str, chance: str, mode: str, seed_texts: List[str] | None = None) -> str:
+    """"
+   " Du formulierst EINE kurze Gruppenfrage im UNDO-Stil – warm, klar, ohne Listen, keine Emojis. "
+   " Sprich die Gruppe als 'ihr' an (keine Ich- oder Wir-Perspektive).  max. ~22 Wörter. "
+   " Subtiler Bezug auf Motiv/Chance. Fallback nutzt seed_texts.
+    """
+    motive_s = (motive or "").strip()
+    chance_s = (chance or "").strip()
+    fallback_seeds = seed_texts or [
+        "Worauf richtest du heute deinen Blick – ganz bewusst?",
+        "Welche kleine Entscheidung macht deinen Tag heute leichter?",
+        "Was braucht dich heute für 10 ruhige Minuten wirklich?",
+        "Womit beginnst du, damit es sich stimmig anfühlt?"
+    ]
+    fallback = random.choice(fallback_seeds)
+    if motive_s or chance_s:
+        fallback = f"{fallback} (mit Blick auf: {motive_s or 'dein Warum'} / {chance_s or 'dein Ziel'})"
+
+    try:
+        client = _ensure_openai_client()
+        system = (
+            "Formuliere genau EINE Frage im UNDO-Stil. Warm, konkret, natürlich. "
+            "Max. 22 Wörter. Kein Listenstil, kein Jargon, keine Emojis. "
+            "Gib NUR die Frage zurück."
+            "Spreche den User im Du an"
+        )
+        user_msg = (
+            f"Modus: {mode or 'unbekannt'}\n"
+            f"Motiv: {motive_s or '-'}\n"
+            f"Chance: {chance_s or '-'}\n"
+            "Kontext: Tägliche Selbstreflexion, die zu kleinen bewussten Veränderungen einlädt."
+        )
+
+        def _do():
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_msg},
+                ],
+                temperature=0.4,
+                max_tokens=50,
+            )
+            text = (resp.choices[0].message.content or "").strip()
+            text = text.split("\n")[0].strip()
+            if not text.endswith("?"):
+                text += "?"
+            if len(text) > 180:
+                text = text[:180].rstrip() + "?"
+            return text
+
+        return _call_openai_safe(_do, fallback_text=fallback)
+
+    except Exception:
+        return fallback

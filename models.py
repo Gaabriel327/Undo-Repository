@@ -2,6 +2,7 @@
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+import uuid 
 
 db = SQLAlchemy()
 
@@ -34,6 +35,12 @@ class User(db.Model, UserMixin):
     motive = db.Column(db.Text)   # Beweggrund
     chance = db.Column(db.Text)   # Aussicht/Ziel
     profile_completed = db.Column(db.Boolean, default=False)
+
+    #Promo Code
+    pro_until = db.Column(db.DateTime, nullable=True)
+    promo_locked = db.Column(db.Boolean, default=False)      # verhindert Downgrade
+    promo_code_id = db.Column(db.Integer, db.ForeignKey("promo_codes.id"), nullable=True)
+    promo_code = db.relationship("PromoCode", back_populates="users")
 
     def __repr__(self):
         return f"<User {self.id}:{self.username}>"
@@ -69,12 +76,20 @@ class Reflection(db.Model):
 class Group(db.Model):
     __tablename__ = "groups"
 
-    id = db.Column(db.String, primary_key=True)
-    name = db.Column(db.String, nullable=False, index=True)
-    created_by = db.Column(db.String, nullable=False, index=True)
-    # CSV der User-IDs: "1,7,12"
-    group_members = db.Column(db.String, nullable=True)
+    # String-UUID als Primary Key, Default wird clientseitig von SQLAlchemy vergeben:
+    id            = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
+    name          = db.Column(db.String(120), nullable=False)
+    created_by    = db.Column(db.String(64), nullable=False)
+    group_members = db.Column(db.Text, default="")
+
+    # falls du sie nutzt – harmlose optionale Felder:
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    motive        = db.Column(db.Text)
+    chance        = db.Column(db.Text)
+    last_q_text   = db.Column(db.Text)
+    last_q_day    = db.Column(db.String(16))
+    last_q_mode   = db.Column(db.String(16))
     def __repr__(self):
         return f"<Group {self.id} {self.name}>"
 
@@ -149,14 +164,13 @@ from datetime import datetime, timedelta
 # ... bestehende Imports/DB ...
 
 class PromoCode(db.Model):
-    id         = db.Column(db.Integer, primary_key=True)
-    code       = db.Column(db.String(64), unique=True, nullable=False)
-    uses_left  = db.Column(db.Integer, default=1)
-    plan       = db.Column(db.String(20), default="pro")   # z.B. "pro"
-    days       = db.Column(db.Integer, default=30)         # Pro-Laufzeit
-    token_grant = db.Column(db.Integer, default=0)         # optional Token-Gutschrift
-    expires_at = db.Column(db.DateTime, nullable=True)     # optional Ablaufdatum
-    pro_until = db.Column(db.DateTime, nullable=True)  # Ende der Pro-Laufzeit
-# Optional: beim User eine Pro-Laufzeit
-# In ensure_user_columns() (Flask) fügst du pro_until hinzu:
-# ALTER TABLE user ADD COLUMN pro_until TEXT
+    __tablename__ = "promo_codes"
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    duration_days = db.Column(db.Integer, nullable=False, default=30)
+    active = db.Column(db.Boolean, default=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    max_uses = db.Column(db.Integer, nullable=True)    # None = unbegrenzt
+    used_count = db.Column(db.Integer, default=0, nullable=False)
+    note = db.Column(db.String(200))
+    users = db.relationship("User", back_populates="promo_code")

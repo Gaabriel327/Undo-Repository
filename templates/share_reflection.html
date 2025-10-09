@@ -1,41 +1,31 @@
+<!-- templates/share_reflection.html -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <title>UNDO – Geteilte Reflexion</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #fafafa;
-            padding: 40px;
-            color: #333;
-            text-align: center;
-        }
-        .card {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            max-width: 600px;
-            margin: auto;
-        }
-        h2 {
-            margin-bottom: 20px;
-        }
-        p {
-            margin-bottom: 15px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>UNDO – Geteilte Reflexion</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:Arial, sans-serif;background:#fafafa;color:#333;margin:0;padding:40px}
+    .card{max-width:680px;margin:0 auto;background:#fff;border:1px solid #eee;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    h2{margin:0 0 16px}
+    .lbl{font-weight:700;margin-top:14px}
+    p{margin:6px 0 0}
+  </style>
 </head>
 <body>
-    <div class="card">
-        <h2>Eine UNDO Reflexion</h2>
-        <p><strong>Frage:</strong> {{ reflection.question }}</p>
-        <p><strong>Antwort:</strong> {{ reflection.answer }}</p>
-        <p><strong>Feedback:</strong> {{ reflection.feedback }}</p>
-        <p style="margin-top:20px; font-size:14px; color:#888;">
-            Geteilt über <strong>UNDO</strong>
-        </p>
-    </div>
+  <div class="card">
+    <h2>Eine UNDO Reflexion</h2>
+
+    <div class="lbl">Frage</div>
+    <p>{{ reflection.question }}</p>
+
+    <div class="lbl">Antwort</div>
+    <p>{{ reflection.answer }}</p>
+
+    <p style="margin-top:22px;font-size:13px;color:#777">
+      Geteilt über <strong>UNDO</strong>
+    </p>
+  </div>
 </body>
 </html>

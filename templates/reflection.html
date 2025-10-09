@@ -1,119 +1,62 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <meta charset="UTF-8">
-    <title>Vergangene Reflexionen – UNDO</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding-bottom: 70px;
-            background-color: #f9f9f9;
-            color: #333;
-        }
-        .container {
-            padding: 20px;
-            max-width: 800px;
-            margin: 40px auto;
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .block {
-            margin-bottom: 25px;
-            background-color: #fff;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.06);
-        }
-        .block h3 {
-            margin-top: 0;
-            font-size: 18px;
-            color: #111;
-        }
-        .block p {
-            margin: 8px 0 10px;
-            line-height: 1.5;
-        }
-        .feedback {
-            border-top: 1px solid #eee;
-            padding-top: 10px;
-            margin-top: 10px;
-            color: #444;
-            font-style: italic;
-        }
-        .date {
-            font-size: 0.9em;
-            color: #777;
-            margin-top: 10px;
-        }
-        .followup {
-            margin-top: 12px;
-        }
-        .locked {
-            color: #888;
-            font-style: italic;
-        }
-      nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #fff;
-            border-top: 1px solid #ddd;
-            padding: 12px 0;
-            display: flex;
-            justify-content: space-around;
-        }
-        nav a {
-            text-decoration: none;
-            color: black;
-            font-weight: bold;
-            font-size: 16px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Deine bisherigen Reflexionen</h2>
+{% extends "base.html" %}
+{% block title %}Deine Reflections – UNDO{% endblock %}
 
-        {% for r in reflections %}
-        <div class="block">
-            <h3>Frage:</h3>
-            <p>{{ r.question }}</p>
+{% block content %}
+  <h2 class="center">Deine Reflections</h2>
 
-            <h3>Deine Antwort:</h3>
-            <p>{{ r.answer }}</p>
-
-            <div class="feedback">
-                <strong>Feedback:</strong><br>
-                {{ r.feedback }}
-            </div>
-
-            <div class="date">{{ r.timestamp.strftime("%d.%m.%Y") }}</div>
-
-           {% if r in followups %}
-    <div class="followup">
-        {% if is_pro and tokens > 0 %}
-            <a href="/respond/{{ r.id }}">Antwort erneut geben (1 Token)</a>
-        {% elif is_pro %}
-            <span class="locked">Nicht genug Tokens</span>
-        {% else %}
-            <span class="locked">Nur mit Pro-Version verfügbar</span>
-        {% endif %}
-    </div>
-{% endif %}
+  {% if reflections and reflections|length > 0 %}
+    {% for r in reflections %}
+      <div class="card" style="margin-bottom:16px">
+        <!-- Frage -->
+        <div class="title" style="margin-bottom:6px">
+          {{ r.question or "Ohne Frage" }}
         </div>
-        {% endfor %}
-    </div>
+        <!-- Datum + Modus -->
+        <div class="sub">
+          {{ r.timestamp.strftime("%d.%m.%Y %H:%M") }}
+          {% if r.mode %} · {{ r.mode|capitalize }}{% endif %}
+        </div>
 
-  <nav>
-        <a href="/">Home</a>
-        <a href="/reflection">Reflection</a>
-        <a href="/profile">Profile</a>
-    </nav>
-    
-</body>
-</html>
+        <!-- Antwort (gekürzt, wenn lang) -->
+        <p style="margin-top:10px;white-space:pre-wrap;max-height:120px;overflow:hidden;text-overflow:ellipsis;">
+          {{ r.answer }}
+        </p>
+
+        <!-- Buttons -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+          <a class="btn ghost" href="{{ url_for('feedback_view', rid=r.id) }}">Details</a>
+          <button class="btn" type="button" onclick="shareReflection({{ r.id }})">Teilen</button>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="sub center">Noch keine Einträge.</p>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function shareReflection(rid){
+  try {
+    const res = await fetch(`/api/share_link/${rid}`, {method:'POST'});
+    if(!res.ok){ 
+      alert('Konnte Share-Link nicht erstellen.'); 
+      return; 
+    }
+    const data = await res.json();
+    const link = data.url;
+    if(navigator.share){
+      await navigator.share({
+        title: 'Meine UNDO-Reflexion',
+        text: 'Hier ist meine Reflexion:',
+        url: link
+      });
+    } else {
+      prompt('Teilen wird nicht unterstützt – kopiere den Link:', link);
+    }
+  } catch(e) {
+    alert('Fehler beim Erstellen des Share-Links.');
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Tokens – UNDO{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width:720px;margin:0 auto">
+    <div class="title">Was kann ich mit Tokens machen?</div>
+    <ul style="margin-top:8px;line-height:1.6">
+      <li><strong>Extra-Frage (Solo):</strong> zusätzlicher Impuls für heute – <strong>1 Token</strong>.</li>
+      <li><strong>Extra-Frage (WeDo):</strong> gemeinsamer Zusatz-Impuls in einer Gruppe – <strong>2 Tokens</strong>.</li>
+    </ul>
+    <div class="sub" style="margin-top:6px;color:#6b6b6b">
+      Hinweis: Normale Today’s UNDO / WeDo sind kostenlos (je Tageszeit) – Extras kosten Tokens.
+    </div>
+  </div>
+
+  <div class="card" style="max-width:720px;margin:14px auto">
+    <div class="title">Wie bekomme ich Tokens?</div>
+    <ul style="margin-top:8px;line-height:1.6">
+      <li><strong>Tägliche Streak-Belohnung:</strong> für deine erste Antwort am Tag:
+        <ul style="margin-top:6px">
+          <li>Streak Tag 1–2: <strong>+1 Token</strong></li>
+          <li>Streak Tag 3–6: <strong>+2 Tokens</strong></li>
+          <li>Streak ab Tag 7: <strong>+3 Tokens</strong></li>
+        </ul>
+      </li>
+      <li><strong>Kauf von Tokens:</strong> Du kannst Tokens jederzeit nachkaufen.</li>
+      <li><strong>Promo-Codes (optional):</strong> Wenn du einen Code hast, kann er dir
+          Test-Zeit oder Tokens freischalten (falls aktiviert).</li>
+      <li><strong>Bearbeitung von Fragen:</strong> Duch ausführliches beantworten der Fragen kannst du bis zu 3 Tokens sammeln.</li>
+        </ul>
+    <div class="sub" style="margin-top:6px;color:#6b6b6b">
+      Die Streak-Belohnung wird automatisch gutgeschrieben, sobald du deine erste Antwort des Tages speicherst.
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+      <a class="btn" href="{{ url_for('buy_tokens') }}">Tokens kaufen</a>
+      <a class="btn ghost" href="{{ url_for('progress') }}">Zu meinem Fortschritt</a>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:720px;margin:14px auto">
+    <div class="title">FAQ</div>
+    <details style="margin-top:8px">
+      <summary style="cursor:pointer;font-weight:600">Zählt die Extra-Frage auch für meinen Streak?</summary>
+      <div class="sub" style="margin-top:6px">
+        Der Streak zählt pro Kalendertag genau einmal – egal ob Solo oder WeDo.
+        Wenn du heute bereits eine Antwort gespeichert hast, erhöht die Extra-Frage den Streak nicht erneut.
+      </div>
+    </details>
+
+    <details style="margin-top:8px">
+      <summary style="cursor:pointer;font-weight:600">Werden Tokens bei zu wenig Kontostand abgezogen?</summary>
+      <div class="sub" style="margin-top:6px">
+        Nein. Bei zu wenig Tokens wird die Extra-Frage blockiert und du wirst zur Kaufseite geleitet.
+      </div>
+    </details>
+
+    <details style="margin-top:8px">
+      <summary style="cursor:pointer;font-weight:600">Sehe ich, wie viele Tokens ich habe?</summary>
+      <div class="sub" style="margin-top:6px">
+        Dein aktueller Stand wird auf der Feedback-Seite und an weiteren Stellen angezeigt.
+      </div>
+    </details>
+  </div>
+{% endblock %}

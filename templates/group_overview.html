@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}WeDo – Übersicht{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width:740px;margin:0 auto">
+    <div class="row" style="border-top:none">
+      <div class="grow">
+        <div class="title">{{ group.name }}</div>
+        <div class="muted">Gemeinsamer Überblick & Today’s WeDo</div>
+      </div>
+      <a class="btn ghost" href="{{ url_for('groups_list') }}">← Zurück zu WeDo</a>
+    </div>
+
+    <div style="text-align:center;margin:14px 0">
+      <img src="{{ radar_url }}" alt="Gruppenfortschritt" style="max-width:100%;border-radius:12px;">
+    </div>
+
+    <div class="row">
+      <div class="grow">
+        <div class="title">Today’s WeDo</div>
+        {% if already_today %}
+          <div class="muted">Heute bereits beantwortet. {{ next_unlock_label }}</div>
+        {% endif %}
+      </div>
+
+      {% if already_today %}
+        <a class="btn ghost" href="{{ url_for('group_prompt', group_id=group.id, extra=1) }}">Extra-Frage (2 Tokens)</a>
+      {% else %}
+        <a class="btn" href="{{ url_for('group_prompt', group_id=group.id) }}">Heute beantworten</a>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

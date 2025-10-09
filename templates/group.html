@@ -1,67 +1,68 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <title>Deine Gruppen – UNDO</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body { font-family: Arial, sans-serif; text-align:center; padding:40px 20px 100px; background:#fff; color:#000; }
-    h2 { font-size:28px; margin-bottom:18px; }
-    .group-list { max-width:600px; margin:0 auto; }
-    .group-box { border:1px solid #ccc; border-radius:12px; padding:16px; margin:12px 0; box-shadow:0 2px 8px rgba(0,0,0,.08); text-align:left; }
-    .group-name { font-weight:bold; font-size:18px; margin-bottom:6px; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
-    .button, .btn-secondary { padding:10px 16px; border:none; border-radius:8px; cursor:pointer; font-size:15px; }
-    .button { background:#000; color:#fff; font-weight:600; }
-    .btn-secondary { background:#f2f2f2; }
-    form.inline { display:inline; }
-    .empty { color:#666; margin:20px 0; }
-    nav { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #ddd; padding:12px 0; display:flex; justify-content:space-around; }
-    nav a { text-decoration:none; color:black; font-weight:bold; font-size:16px; }
-  </style>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Deine Gruppen – UNDO{% endblock %}
 
-  <h2>Deine Gruppen</h2>
+{% block content %}
+  <h2 class="center">Deine Gruppen</h2>
 
-  <div class="group-list">
+  <div style="max-width:640px;margin:0 auto">
     {% if groups and groups|length > 0 %}
       {% for group in groups %}
-        <div class="group-box">
-          <div class="group-name">{{ group.name }}</div>
-          <div class="row">
-            <form class="inline" action="{{ url_for('join_group', group_id=group.id) }}">
-              <button class="btn-secondary" type="submit">Beitreten/Öffnen</button>
-            </form>
-            <button class="btn-secondary" onclick="shareInvite('{{ request.url_root | trim('/') }}/join/{{ group.id }}')">Einladen</button>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="title" style="word-break:break-word">{{ group.name }}</div>
+            {% if current_user.is_authenticated and (current_user.id|string) == (group.created_by|string) %}
+              <span class="sub" title="Du bist Besitzer·in der Gruppe">Owner</span>
+            {% endif %}
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+            <!-- Öffnen führt zur WEDO-Ansicht wie Today's Undo -->
+            <a class="btn ghost" href="{{ url_for('group_open', group_id=group.id) }}">Öffnen</a>
+
+            <!-- Einladen: Web Share API mit Copy-Fallback -->
+            <button class="btn ghost" type="button"
+                    onclick="shareInvite('{{ (request.url_root | trim('/')) ~ url_for('group_open', group_id=group.id) }}')">
+              Einladen
+            </button>
+
+            <!-- Bearbeiten nur für Ersteller·in -->
+            {% if current_user.is_authenticated and (current_user.id|string) == (group.created_by|string) %}
+              <a class="btn" href="{{ url_for('group_edit', group_id=group.id) }}">Bearbeiten</a>
+            {% endif %}
           </div>
         </div>
       {% endfor %}
     {% else %}
-      <p class="empty">Noch keine Gruppe vorhanden.</p>
+      <p class="sub center">Noch keine Gruppe vorhanden.</p>
     {% endif %}
 
-    <form action="{{ url_for('create_group') }}" method="POST" style="margin-top:16px;">
+    <!-- Neue Gruppe erstellen -->
+    <form action="{{ url_for('create_group') }}" method="POST" style="margin-top:16px;text-align:center">
       <input type="hidden" name="name" value="Meine Gruppe" />
-      <button class="button" type="submit">Neue Gruppe erstellen</button>
+      <button class="btn" type="submit">Neue Gruppe erstellen</button>
     </form>
   </div>
+{% endblock %}
 
-  <script>
-    function shareInvite(link) {
+{% block scripts %}
+<script>
+  async function shareInvite(link) {
+    try {
+      // Versuche die native Share-API
       if (navigator.share) {
-        navigator.share({ title: 'Komm in meine UNDO Gruppe!', text: 'Hier ist der Beitrittslink:', url: link })
-          .catch(() => {});
-      } else {
-        prompt('Teilen wird nicht unterstützt – kopiere den Link:', link);
+        await navigator.share({ title: 'Komm in meine UNDO Gruppe!', text: 'Hier ist der Beitrittslink:', url: link });
+        return;
       }
-    }
-  </script>
+    } catch(e) { /* ignoriere und nutze Fallback */ }
 
-  <nav>
-    <a href="/">Home</a>
-    <a href="/reflection">Reflection</a>
-    <a href="/profile">Profile</a>
-  </nav>
-</body>
-</html>
+    // Copy-Fallback (Desktop)
+    try {
+      await navigator.clipboard.writeText(link);
+      alert('Einladungslink wurde in die Zwischenablage kopiert:\n' + link);
+    } catch (e) {
+      // Allerletzter Fallback
+      prompt('Teilen wird nicht unterstützt – kopiere den Link:', link);
+    }
+  }
+</script>
+{% endblock %}

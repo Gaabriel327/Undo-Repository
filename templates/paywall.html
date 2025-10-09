@@ -1,59 +1,19 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>Werde Pro – UNDO</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f8f8f8;
-            text-align: center;
-            padding: 60px 20px;
-        }
-        .box {
-            background: #fff;
-            border-radius: 12px;
-            padding: 30px;
-            max-width: 500px;
-            margin: auto;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        h1 {
-            margin-bottom: 10px;
-        }
-        p {
-            color: #444;
-            margin: 10px 0;
-        }
-        ul {
-            text-align: left;
-            padding: 0 20px;
-        }
-        li {
-            margin: 8px 0;
-        }
-        .btn {
-            margin-top: 25px;
-            display: inline-block;
-            padding: 12px 24px;
-            background: black;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-        }
-    </style>
-</head>
-<body>
-    <div class="box">
-        <h1>Mehr Tiefe mit UNDO Pro</h1>
-        <p>Du hast gerade reflektiert – jetzt kannst du noch mehr herausholen:</p>
-        <ul>
-            <li> GPT-gestütztes, tiefes Feedback</li>
-            <li> Wochen- & Monatsvergleiche</li>
-            <li> Alte Fragen erneut beantworten</li>
-        </ul>
-        <a class="btn" href="/upgrade">Jetzt Pro freischalten</a>
-        <p style="margin-top: 20px;"><a href="/">Nein danke, zurück zur Startseite</a></p>
+{% extends "base.html" %}
+{% block title %}Werde Pro – UNDO{% endblock %}
+
+{% block content %}
+  <div class="card center" style="max-width:560px;margin:40px auto">
+    <h2>Mehr Tiefe mit UNDO Pro</h2>
+    <p class="sub">Du hast gerade reflektiert – jetzt kannst du noch mehr herausholen:</p>
+    <div style="text-align:left;max-width:440px;margin:12px auto">
+      <ul>
+        <li>GPT-gestütztes, tiefes Feedback</li>
+        <li>Wochen- & Monatsvergleiche</li>
+        <li>Alte Fragen erneut beantworten</li>
+      </ul>
     </div>
-</body>
-</html>
+    <a class="btn" href="/upgrade">Jetzt Pro freischalten</a>
+    <div class="sp-20"></div>
+    <a href="{{ url_for('index') }}" style="color:#000">Nein danke, zurück zur Startseite</a>
+  </div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Gruppe bearbeiten – UNDO{% endblock %}
+
+{% block content %}
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <a class="btn ghost" href="{{ url_for('groups_list') }}">← Zurück zu WeDo</a>
+    <div class="title">Gruppe bearbeiten</div>
+  </div>
+
+  <!-- Edit-Form -->
+  <form method="post" class="card" style="max-width:640px;margin:0 auto">
+    <label class="title" for="name">Name</label>
+    <input id="name" name="name" type="text" value="{{ group.name or '' }}" style="margin-top:6px" required>
+
+    <div class="sp-16"></div>
+
+    <label class="title" for="motive">Gruppen-Motive (erforderlich)</label>
+    <textarea id="motive" name="motive" rows="3" required>{{ group.motive or '' }}</textarea>
+
+    <div class="sp-16"></div>
+
+    <label class="title" for="chance">Gruppen-Chance / Ziel (erforderlich)</label>
+    <textarea id="chance" name="chance" rows="3" required>{{ group.chance or '' }}</textarea>
+
+    <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap">
+      <button class="btn" type="submit">Speichern</button>
+    </div>
+  </form>
+
+  <!-- Delete-Form separat (nicht verschachtelt) -->
+  <form method="post" action="{{ url_for('group_delete', group_id=group.id) }}"
+        onsubmit="return confirm('Gruppe wirklich löschen?');"
+        style="max-width:640px;margin:12px auto 0;text-align:right">
+    <button class="btn ghost" type="submit">Gruppe löschen</button>
+  </form>
+{% endblock %}

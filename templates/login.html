@@ -1,84 +1,24 @@
-<!-- templates/login.html -->
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>Login – UNDO</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-        }
-
-        h1 {
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-
-        p {
-            margin-bottom: 30px;
-            color: #555;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            width: 80%;
-            max-width: 300px;
-        }
-
-        input {
-            padding: 12px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            font-size: 16px;
-        }
-
-        button {
-            padding: 12px;
-            background-color: #000;
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #333;
-        }
-
-        .switch-link {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #333;
-        }
-
-        .switch-link a {
-            color: #000;
-            text-decoration: underline;
-        }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
+{% set hide_nav = True %}
+{% block title %}Login – UNDO{% endblock %}
+{% block content %}
+  <div style="max-width:320px;margin:0 auto;text-align:center;padding-top:14vh;">
     <h1>UNDO</h1>
-    <p>UNDO Your Mind</p>
+    <p class="sub" style="color:#666;margin-bottom:24px;">Melde dich an</p>
 
-    <form method="POST">
-        <input type="email" name="email" placeholder="Enter email..." required>
-        <input type="password" name="password" placeholder="Enter password..." required>
-        <button type="submit">Login</button>
+    <form method="POST" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="email" name="email" placeholder="E-Mail" required
+             style="padding:12px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
+      <input type="password" name="password" placeholder="Passwort" required
+             style="padding:12px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
+      <button type="submit"
+              style="padding:12px;border:none;border-radius:10px;background:#000;color:#fff;font-weight:800;font-size:16px;cursor:pointer;">
+        Login
+      </button>
     </form>
 
-    <div class="switch-link">
-        Noch keinen Account? <a href="/register">Registrieren</a>
+    <div style="margin-top:16px;font-size:14px;">
+      Noch keinen Account? <a href="{{ url_for('register') }}">Registrieren</a>
     </div>
-</body>
-</html>
+  </div>
+{% endblock %}
