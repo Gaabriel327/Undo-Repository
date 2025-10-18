@@ -103,6 +103,45 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, 
         lines.append(line)
     return lines
 
+# ============================================================
+# CSV-Helferfunktionen für Gruppen-Mitglieder
+# ============================================================
+
+def _csv_to_list(csv_str: str | None) -> list[str]:
+    """Konvertiert '1,2,3' → ['1','2','3']"""
+    if not csv_str:
+        return []
+    return [p.strip() for p in csv_str.split(",") if p.strip()]
+
+def _list_to_csv(vals: list[str]) -> str:
+    """Konvertiert ['1','2','3'] → '1,2,3' (ohne Duplikate)"""
+    seen, out = set(), []
+    for v in vals:
+        if v and v not in seen:
+            seen.add(v)
+            out.append(v)
+    return ",".join(out)
+
+def _csv_has_member(csv_str: str | None, uid_s: str) -> bool:
+    """Prüft, ob ein bestimmter User (als ID-String) in der CSV steht."""
+    return uid_s in _csv_to_list(csv_str)
+
+def _group_members_list(g) -> list[str]:
+    """Liefert alle Mitglieder einer Gruppe als Liste."""
+    return _csv_to_list(getattr(g, "group_members", "") or "")
+
+def _group_add_member(g, uid_s: str) -> None:
+    """Fügt User einer Gruppe hinzu (falls nicht bereits enthalten)."""
+    lst = _group_members_list(g)
+    if uid_s not in lst:
+        lst.append(uid_s)
+        g.group_members = _list_to_csv(lst)
+
+def _group_remove_member(g, uid_s: str) -> None:
+    """Entfernt User aus einer Gruppe."""
+    lst = [x for x in _group_members_list(g) if x != uid_s]
+    g.group_members = _list_to_csv(lst)
+
 import re
 
 # Optional: du hast ähnliche Listen schon – wir nutzen sie hier mit
@@ -156,17 +195,16 @@ def _quality_tokens(answer: str) -> int:
 
     # Schwellen:
     # 1 Token: fast sicher ab 40 Wörtern
-    if not has_base:
+    if wc < 20:
         return 0
-
     tokens = 1
 
     # 2 Tokens: ab 90+ Wörtern, wenn „reich“ und „Handlung/Zukunft“ sichtbar
-    if wc >= 90 and is_rich and has_action:
+    if wc < 50 and is_rich and has_action:
         tokens = 2
 
     # 3 Tokens: ab 180+ Wörtern und alle drei Bedingungen
-    if wc >= 180 and is_rich and has_action and coherent:
+    if wc < 70 and is_rich and has_action and coherent:
         tokens = 3
 
     return tokens
@@ -778,20 +816,40 @@ def _compute_motive_due(user):
 @app.route("/register", methods=["GET", "POST"], endpoint="register")
 def register_route():
     if request.method == "POST":
-        username  = (request.form.get("username") or "").strip()
-        email     = (request.form.get("email") or "").strip().lower()
-        password  = request.form.get("password") or ""
-        promo_in  = (request.form.get("promo_code") or "").strip()
+        username   = (request.form.get("username") or "").strip()
+        email      = (request.form.get("email") or "").strip().lower()
+        password   = request.form.get("password") or ""
+        promo_in   = (request.form.get("promo_code") or "").strip()
+        # 🟢 Neu: Geburtsdatum (optional, aber validiert wenn gesetzt)
+        birthdate_str = (request.form.get("birthdate") or "").strip()
+        birthdate = None
+        if birthdate_str:
+            try:
+                # Erwartetes HTML-Input-Format: type="date" -> "YYYY-MM-DD"
+                birthdate = datetime.strptime(birthdate_str, "%Y-%m-%d").date()
+            except ValueError:
+                return render_template(
+                    "register.html",
+                    username=username, email=email, promo_code=promo_in,
+                    birthdate=birthdate_str,
+                    error="Bitte gib ein gültiges Geburtsdatum im Format JJJJ-MM-TT an."
+                ), 200
 
         if not username or not email or not password or not promo_in:
-            return render_template("register.html",
-                                   username=username, email=email, promo_code=promo_in,
-                                   error="Bitte alle Felder inkl. Promo-Code ausfüllen."), 200
+            return render_template(
+                "register.html",
+                username=username, email=email, promo_code=promo_in,
+                birthdate=birthdate_str,
+                error="Bitte alle Felder inkl. Promo-Code ausfüllen."
+            ), 200
 
         if User.query.filter((User.username == username) | (User.email == email)).first():
-            return render_template("register.html",
-                                   username=username, email=email, promo_code=promo_in,
-                                   error="Benutzername oder E-Mail vergeben."), 200
+            return render_template(
+                "register.html",
+                username=username, email=email, promo_code=promo_in,
+                birthdate=birthdate_str,
+                error="Benutzername oder E-Mail vergeben."
+            ), 200
 
         norm_in = promo_in.lower().replace("-", "").replace(" ", "")
         pc = (PromoCode.query
@@ -799,17 +857,28 @@ def register_route():
               .first())
 
         if not pc or not pc.active:
-            return render_template("register.html",
-                                   username=username, email=email, promo_code=promo_in,
-                                   error="Ungültiger Promo-Code."), 200
+            return render_template(
+                "register.html",
+                username=username, email=email, promo_code=promo_in,
+                birthdate=birthdate_str,
+                error="Ungültiger Promo-Code."
+            ), 200
+
         if pc.expires_at and pc.expires_at < datetime.utcnow():
-            return render_template("register.html",
-                                   username=username, email=email, promo_code=promo_in,
-                                   error="Promo-Code abgelaufen."), 200
+            return render_template(
+                "register.html",
+                username=username, email=email, promo_code=promo_in,
+                birthdate=birthdate_str,
+                error="Promo-Code abgelaufen."
+            ), 200
+
         if pc.max_uses is not None and int(pc.used_count or 0) >= pc.max_uses:
-            return render_template("register.html",
-                                   username=username, email=email, promo_code=promo_in,
-                                   error="Promo-Code bereits aufgebraucht."), 200
+            return render_template(
+                "register.html",
+                username=username, email=email, promo_code=promo_in,
+                birthdate=birthdate_str,
+                error="Promo-Code bereits aufgebraucht."
+            ), 200
 
         user = User(
             username=username,
@@ -819,6 +888,7 @@ def register_route():
             pro_until=datetime.utcnow() + timedelta(days=pc.duration_days or 30),
             promo_locked=True,
             promo_code=pc,
+            birthdate=birthdate,  # 🟢 Neu: speichern
         )
         db.session.add(user)
         pc.used_count = int(pc.used_count or 0) + 1
@@ -1099,45 +1169,11 @@ def prompt():
         return redirect(url_for("index"))
 
     # KI-Frage (Du-Perspektive) mit Fallback
-    q = None
-    try:
-        q = ai_generate_question(
+    q = ai_generate_question(
             motive=current_user.motive or "",
             chance=current_user.chance or "",
             mode=current_mode,
-            seed_texts=[
-                "Worum geht es dir heute wirklich – in einem Satz?",
-                "Welche kleine Entscheidung hebt deinen Tag leise an?",
-                "Was braucht dich heute für 10 ruhige Minuten?",
-                "Womit beginnst du, damit es sich stimmig anfühlt?"
-            ]
-        )
-    except Exception:
-        q = None
-
-    if not q:
-        pool_morning = [
-            "Worauf richtest du heute deinen Blick – ganz bewusst?",
-            "Welche kleine Entscheidung macht deinen Tag heute leichter?",
-            "Was ist heute eine Sache, die du sichtbar machst?",
-            "Womit beginnst du, damit es sich stimmig anfühlt?"
-        ]
-        pool_evening = [
-            "Was tat heute gut – und wovon möchtest du mehr?",
-            "Welche kleine Sache hat heute einen echten Unterschied gemacht?",
-            "Wofür willst du dir heute Anerkennung geben?",
-            "Was darf heute leise zu Ende gehen?"
-        ]
-        base = pool_evening if current_mode == "evening" else pool_morning
-        q = random.choice(base)
-
-    q = enforce_du(q)
-    if not q.endswith("?"):
-        q = q.rstrip(". ") + "?"
-
-    # Die angezeigte Frage für den POST sicherheitshalber puffern
-    session["prompt_q_text"] = q
-
+    )
     # Rendern
     return render_template(
         "prompt.html",
@@ -1356,13 +1392,19 @@ def _to_plural_second_person(text: str) -> str:
 @app.route("/wedo", methods=["GET"], endpoint="groups_list")
 @login_required
 def groups_list():
-    uid = str(current_user.id)
-    groups = Group.query.filter(
-        (Group.created_by == uid) | (Group.group_members.like(f"%{uid}%"))
-    ).all()
+    uid_s = str(current_user.id)
 
-    own_count = Group.query.filter(Group.created_by == uid).count()
+    # Eigene Gruppen direkt per Query:
+    owned = Group.query.filter(Group.created_by == uid_s).all()
+
+    # Alle anderen Gruppen laden und in Python per CSV checken (vermeidet LIKE-Fehltreffer z.B. '1' in '11'):
+    others = Group.query.filter(Group.created_by != uid_s).all()
+    member_of = [g for g in others if _csv_has_member(g.group_members, uid_s)]
+
+    groups = owned + member_of
+    own_count = len(owned)
     can_create = own_count < 3
+
     return render_template("group.html", groups=groups, can_create=can_create, own_count=own_count)
 
 
@@ -1406,6 +1448,60 @@ def group_overview(group_id):
         radar_url=radar_url
     )
 
+@app.get("/wedo/<group_id>/members", endpoint="group_members")
+@login_required
+def group_members(group_id):
+    g = Group.query.get_or_404(group_id)
+    if str(current_user.id) != str(g.created_by):
+        return "Nur der Ersteller kann Mitglieder verwalten.", 403
+
+    member_ids = _group_members_list(g)
+    members = User.query.filter(User.id.in_([int(x) for x in member_ids if x.isdigit()])).all()
+    return render_template("group_members.html", group=g, members=members)
+
+@app.post("/wedo/<group_id>/members/remove", endpoint="group_member_remove")
+@login_required
+def group_member_remove(group_id):
+    g = Group.query.get_or_404(group_id)
+    if str(current_user.id) != str(g.created_by):
+        return "Nur der Ersteller kann Mitglieder entfernen.", 403
+
+    uid_to_remove = (request.form.get("user_id") or "").strip()
+    if not uid_to_remove:
+        return redirect(url_for("group_members", group_id=g.id))
+
+    _group_remove_member(g, uid_to_remove)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return "Entfernen fehlgeschlagen – bitte später erneut.", 500
+
+    return redirect(url_for("group_members", group_id=g.id))
+
+@app.post("/wedo/<group_id>/join", endpoint="group_join")
+@login_required
+def group_join(group_id):
+    g = Group.query.get_or_404(group_id)
+    uid_s = str(current_user.id)
+
+    # bereits Owner?
+    if uid_s == str(g.created_by):
+        return redirect(url_for("group_overview", group_id=g.id))
+
+    # schon Mitglied?
+    if _csv_has_member(g.group_members, uid_s):
+        return redirect(url_for("group_overview", group_id=g.id))
+
+    # hinzufügen + speichern
+    _group_add_member(g, uid_s)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return "Beitritt fehlgeschlagen – bitte später erneut.", 500
+
+    return redirect(url_for("group_overview", group_id=g.id))
 
 # ---------------------------------------------
 # WeDo: Prompt (GET: Frage zeigen, POST: speichern)
@@ -1417,7 +1513,6 @@ def group_overview(group_id):
 def group_prompt(group_id):
     g = Group.query.get_or_404(group_id)
 
-    # Berechtigung: Owner oder Mitglied
     uid_s = str(current_user.id)
     is_member = (uid_s == str(g.created_by)) or _csv_has_member(g.group_members, uid_s)
     if not is_member:
@@ -1425,9 +1520,6 @@ def group_prompt(group_id):
 
     now_local, _, _ = today_bounds_utc(APP_TZ)
     current_mode = "evening" if now_local.hour >= 18 else "morning"
-
-    # Extra ist bei WeDo deaktiviert
-    is_extra = False
 
     if request.method == "POST":
         answer = (request.form.get("answer") or "").strip()
@@ -1437,12 +1529,14 @@ def group_prompt(group_id):
 
         # Nur 1× pro Tag/Modus
         if _user_answered_group_today(current_user.id, group_id, current_mode):
-            return redirect(url_for("group_open", group_id=group_id))
+            return redirect(url_for("group_overview", group_id=group_id))
 
-        # Feedback
+        # Feedback (WeDo → ihr-Form)
         if is_pro(current_user):
             fb = ai_generate_feedback(
-                shown_text, answer, current_user.motive, current_user.chance, mode=current_mode
+                shown_text, answer,
+                current_user.motive or "", current_user.chance or "",
+                mode=current_mode, audience="wedo"
             ).replace("UNDO-Impuls:", "WeDo-Impuls:")
         else:
             fb = "Klar und machbar halten – ein kleiner Schritt, den ihr heute sichtbar macht."
@@ -1461,13 +1555,13 @@ def group_prompt(group_id):
         db.session.add(r)
         db.session.commit()
 
-                # --- QUALITÄTSTOKENS (1–3) ---
+        # Qualitätstokens 1–3
         earned_quality = _quality_tokens(answer)
         if earned_quality > 0:
             current_user.tokens = int(current_user.tokens or 0) + earned_quality
             db.session.commit()
 
-        # --- STREAK-BELONUNG ---
+        # Streak-Belohnung
         before = int(current_user.tokens or 0)
         update_streak_and_grant_tokens(db, current_user)
         after = int(current_user.tokens or 0)
@@ -1476,7 +1570,7 @@ def group_prompt(group_id):
         total_earned = earned_quality + earned_streak
         return redirect(url_for("feedback_view", rid=r.id, compact=1, earned=total_earned))
 
-    # ---------- GET: Frage generieren ----------
+    # ---------- GET: Frage generieren (eigener Block!) ----------
     try:
         q = ai_generate_group_question(
             motive=getattr(g, "motive", None),
@@ -1495,7 +1589,7 @@ def group_prompt(group_id):
         group=g,
         mode=current_mode,
         question=q,
-        question_text=q,  # wichtig: Hidden-Feld im Formular
+        question_text=q,  # Hidden-Feld
     )
 
 

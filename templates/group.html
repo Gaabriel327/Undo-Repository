@@ -1,59 +1,124 @@
 {% extends "base.html" %}
-{% block title %}Deine Gruppen – UNDO{% endblock %}
+
+{% block title %}WeDo · Gruppen{% endblock %}
 
 {% block content %}
-  <h2 class="center">Deine Gruppen</h2>
+<div class="container">
 
-  <div style="max-width:640px;margin:0 auto">
-    {% if groups and groups|length > 0 %}
-      {% for group in groups %}
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-            <div class="title" style="word-break:break-word">{{ group.name }}</div>
-            {% if current_user.is_authenticated and (current_user.id|string) == (group.created_by|string) %}
-              <span class="sub" title="Du bist Besitzer·in der Gruppe">Owner</span>
-            {% endif %}
+  <div class="card">
+    <h1 style="margin-bottom:6px;">WeDo · Gruppen</h1>
+    <div class="sub">Gemeinsam kurz checken, klein anfangen, ruhig vorankommen.</div>
+  </div>
+
+  {# --- kleine Übersicht/Status --- #}
+  <div class="card">
+    <div class="row">
+      <div class="grow">
+        <div class="title">Dein Gruppen-Status</div>
+        <div class="muted">
+          {% set total = (groups|length) %}
+          {% if total == 0 %}
+            Du bist derzeit in keiner Gruppe.
+          {% elif total == 1 %}
+            Du bist in 1 Gruppe.
+          {% else %}
+            Du bist in {{ total }} Gruppen.
+          {% endif %}
+          {% if own_count is defined %}
+            &nbsp;·&nbsp;Eigene Gruppen: {{ own_count }}{% if not can_create %} (Limit 3 erreicht){% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# --- Liste deiner Gruppen --- #}
+  {% if groups and (groups|length) > 0 %}
+    <div class="card">
+      {% for g in groups %}
+        <div class="row">
+          <div class="grow">
+            <div class="title">{{ g.name }}</div>
+            <div class="muted">
+              ID: {{ g.id }}
+              {% if user and (user.id|string) == (g.created_by or '') %}
+                · Rolle: Owner
+              {% else %}
+                · Rolle: Mitglied
+              {% endif %}
+            </div>
           </div>
+          <div class="action" style="display:flex; gap:8px;">
+            <a class="btn" href="{{ url_for('group_overview', group_id=g.id) }}">Öffnen</a>
 
-          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-            <!-- Öffnen führt zur WEDO-Ansicht wie Today's Undo -->
-            <a class="btn ghost" href="{{ url_for('group_open', group_id=group.id) }}">Öffnen</a>
-
-            <!-- Einladen: Web Share API mit Copy-Fallback -->
-            <button class="btn ghost" type="button"
-                    onclick="shareInvite('{{ (request.url_root | trim('/')) ~ url_for('group_open', group_id=group.id) }}')">
-              Einladen
-            </button>
-
-            <!-- Bearbeiten nur für Ersteller·in -->
-            {% if current_user.is_authenticated and (current_user.id|string) == (group.created_by|string) %}
-              <a class="btn" href="{{ url_for('group_edit', group_id=group.id) }}">Bearbeiten</a>
+            {# --- Nur Owner darf einladen --- #}
+            {% if user and (user.id|string) == (g.created_by or '') %}
+              <button class="btn ghost"
+                      type="button"
+                      onclick="shareInvite('{{ request.host_url }}wedo/{{ g.id }}/join')">
+                Einladen
+              </button>
             {% endif %}
           </div>
         </div>
       {% endfor %}
-    {% else %}
-      <p class="sub center">Noch keine Gruppe vorhanden.</p>
-    {% endif %}
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <div class="title">Noch keine Gruppen</div>
+          <div class="muted">Erstelle eine Gruppe und lade andere ein.</div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
 
-    <!-- Neue Gruppe erstellen -->
-    <form action="{{ url_for('create_group') }}" method="POST" style="margin-top:16px;text-align:center">
-      <input type="hidden" name="name" value="Meine Gruppe" />
-      <button class="btn" type="submit">Neue Gruppe erstellen</button>
-    </form>
+  {# --- Neue Gruppe erstellen (mit Limit) --- #}
+  <div class="card">
+    {% if can_create %}
+      <form method="post" action="{{ url_for('create_group') }}">
+        <div class="row" style="border-top:none;">
+          <div class="grow">
+            <label for="gname" class="title" style="display:block; margin-bottom:8px;">Neue Gruppe</label>
+            <input id="gname" name="name" type="text" placeholder="Name der Gruppe" />
+            <div class="muted" style="margin-top:6px;">Max. 3 eigene Gruppen möglich.</div>
+          </div>
+          <div class="action">
+            <button class="btn" type="submit">Erstellen</button>
+          </div>
+        </div>
+      </form>
+    {% else %}
+      <div class="row" style="border-top:none;">
+        <div class="grow">
+          <div class="title">Limit erreicht</div>
+          <div class="muted">Du kannst maximal 3 eigene Gruppen erstellen.</div>
+        </div>
+      </div>
+    {% endif %}
   </div>
+
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
   async function shareInvite(link) {
     try {
-      // Versuche die native Share-API
+      // Versuche die native Share-API (z. B. auf iPhone oder Android)
       if (navigator.share) {
-        await navigator.share({ title: 'Komm in meine UNDO Gruppe!', text: 'Hier ist der Beitrittslink:', url: link });
+        await navigator.share({
+          title: 'Komm in meine UNDO Gruppe!',
+          text: 'Hier ist dein Einladungslink:',
+          url: link
+        });
         return;
       }
-    } catch(e) { /* ignoriere und nutze Fallback */ }
+    } catch (e) {
+      // Fallback wenn share() fehlschlägt
+      console.warn('Native Share-API nicht verfügbar:', e);
+    }
 
     // Copy-Fallback (Desktop)
     try {

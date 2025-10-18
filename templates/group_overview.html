@@ -23,6 +23,20 @@
         {% endif %}
       </div>
 
+      {% if user and (user.id|string) == group.created_by %}
+  <a class="btn" href="{{ url_for('group_members', group_id=group.id) }}">Mitglieder verwalten</a>
+{% endif %}
+
+{% set uid_s = (user.id|string) %}
+{% set is_owner = (uid_s == group.created_by) %}
+{% set is_member = (group.group_members or '') and (uid_s in (group.group_members.split(','))) %}
+
+{% if (not is_owner) and (not is_member) %}
+  <form method="post" action="{{ url_for('group_join', group_id=group.id) }}">
+    <button class="btn" type="submit">Gruppe beitreten</button>
+  </form>
+{% endif %}
+
       {% if already_today %}
         <a class="btn ghost" href="{{ url_for('group_prompt', group_id=group.id, extra=1) }}">Extra-Frage (2 Tokens)</a>
       {% else %}

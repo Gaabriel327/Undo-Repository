@@ -26,6 +26,7 @@ import time
 import random
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
+import logging 
 
 # OpenAI (neues SDK)
 try:
@@ -51,6 +52,22 @@ __all__ = [
     "ai_generate_group_question",  # <-- neu exportiert
 ]
 
+# ===== UNDO / WeDo System Prompts =====
+
+SYSTEM_SOLO = (
+    "Du bist UNDO, ein achtsamer und klarer Begleiter. "
+    "Schreibe kurze, menschliche Rückmeldungen (2–3 Sätze) "
+    "in der Du-Form. Beziehe dich konkret auf das, was die Person geschrieben hat, "
+    "und beende mit einem einladenden Impuls (kein Coaching, keine Liste)."
+    "Sprich verständlich und nicht verschachtelt, simpel und schaffe dem User eine gemütliche Umgebung "
+)
+
+SYSTEM_WEDO = (
+    "Du bist UNDO · WeDo, ein empathischer Gruppenbegleiter. "
+    "Sprich in der 'Ihr'-Form. Fasse den gemeinsamen Gedanken zusammen "
+    "und gib am Ende einen kleinen Team-Impuls (1 Satz) "
+    "Sprich verständlich und nicht verschachtelt, simpel und schaffe den Usern eine gemütliche Umgebung "
+)
 
 # ------------------------------------------------------------
 # OpenAI Helper
@@ -268,53 +285,55 @@ def ai_generate_feedback(
     motive: str,
     chance: str,
     mode: str | None = None,   # "morning" | "evening" | None
-    *,
-    impulse_label: str = "UNDO-Impuls"   # <— Default: Solo weiterhin UNDO-Impuls
+    audience: str = "solo",     # "solo" | "wedo"
+    impulse_label: str = "UNDO-Impuls",
 ) -> str:
     """
-    UNDO-Feedback: 2 kurze Absätze + optionaler „UNDO-Impuls“ (eine Zeile).
-    Kein Listenstil, keine Emojis, kein Coaching-Jargon.
-    Motive & Chance weich eingebunden. Ton passt sich dem Modus an.
+    Kurzes UNDO-Feedback: 2 kurze Absätze + eine Schlusszeile mit dem UNDO-IMPULS".
+    - natürlich, warm, schaffe dem User eine wohlfühl Atmosphäre
+    - keine Listen, keine Emojis, kein Fachjargon, kein Dozieren
+    - bei SOLO in Du-Form, bei WeDo in Ihr ansprechen
+    - binde auch motive und chance ein ohne sie konkret zu nennen
     """
+
     def _tone_for_mode(m: str | None) -> str:
         if m == "morning":
-            return ("Klinge leicht und anhebend; gib Zuversicht für den Start in den Tag. "
-                    "Halte den Fokus klein und machbar.")
+            return "Klinge leicht und zugewandt – hilf beim ruhigen Start in den Tag. Halte den Fokus klein und machbar."
         if m == "evening":
-            return ("Klinge entlastend und freundlich; würdige den Tag und richte sanft den Blick "
-                    "auf einen ruhigen Abschluss oder ein leises Weiter.")
+            return "Klinge entlastend und freundlich – würdige den Tag und zeige leise, was jetzt gut abschließen darf."
         return "Klinge ruhig, klar und zugewandt."
 
     def _soft_fallback() -> str:
         return _fallback_feedback(question_text, answer_text, motive, chance)
-    
+
     try:
         client = _ensure_openai_client()
 
+        pov = ("Du-Form, sprich die Person direkt an."
+               if audience == "solo"
+               else "Ihr-Form, sprecht die Gruppe als Team an.")
+        # Impuls-Label sauber an die KI durchreichen
+        label = impulse_label or ("WeDo-Impuls" if audience == "wedo" else "UNDO-Impuls")
+
         system = (
             "Schreibe wie ein einfühlsamer, klarer Mensch im UNDO-Stil. "
-            "Maximal ~120 Wörter. "
-            "Keine Bulletpoints/Nummern, keine Emojis, kein Fachjargon. "
-            "Kein Dozieren und keine Wiederholung der Eingaben. "
-            "Ziel: Verstehen spiegeln + eine sanfte Richtungsänderung anstoßen. "
-            "Spreche den User stets im du an, also keine Ich-Perspektive in den Fragen"
+            "Sehr kurz: insgesamt höchstens ~100–120 Wörter. "
+            "Keine Bulletpoints, keine Zahlenlisten, keine Emojis, kein Coach-Jargon. "
+            f"{pov} "
             f"{_tone_for_mode(mode)} "
-            "Struktur:\n"
-            "Absatz 1: Kurzes Spiegeln der Bedeutung & des Moments.\n"
-            "Absatz 2: Neue, kleine Perspektive, die aus Gewohnheiten führt (keine Checkliste).\n"
-            "Schluss Eine Zeile unter dem Rest: 'UNDO-Impuls: <eine sehr kleine Einladung in einem Satz>'."
+            "Gib exakt ZWEI kurze Absätze: "
+            "1) kurz spiegeln, was wesentlich ist; "
+            "2) eine kleine, machbare Perspektive, die nicht belehrt. "
+            f"schließe mit einer Zeile ab, die mit '{label}:' beginnt und dem User hilft über den Tellerrand zu blicken."
         )
 
-        mode_hint = f"Modus: {mode}" if mode else "Modus: unbekannt"
         user_msg = (
-            f"{mode_hint}\n"
+            f"Modus: {mode or 'unbekannt'}\n"
             f"Frage: {question_text}\n"
             f"Antwort: {answer_text}\n"
-            f"Motive (Warum): {motive or '-'}\n"
+            f"Motiv (Warum): {motive or '-'}\n"
             f"Chance (Ziel): {chance or '-'}\n\n"
-            "Gib genau zwei sehr kurze Absätze. "
-            "Hänge, wenn sinnvoll, eine letzte Ein-Satz-Zeile an, die mit 'UNDO-Impuls:' beginnt. "
-            "Vermeide Listen, Bindestrichreihen und Floskeln."
+            f"Wenn du die Schlusszeile gibst, nutze genau das Label: {label}: ..."
         )
 
         def _do():
@@ -324,14 +343,13 @@ def ai_generate_feedback(
                     {"role": "system", "content": system},
                     {"role": "user", "content": user_msg},
                 ],
-                temperature=0.55,
+                temperature=0.5,
                 max_tokens=260,
             )
             text = (resp.choices[0].message.content or "").strip()
-            # Listenoptik entfernen
-            if any(b in text for b in ("\n- ", "\n• ", "\n1.", "\n2.", "\n3.")):
-                text = text.replace("\n- ", "\n").replace("\n• ", "\n")
-                text = text.replace("\n1.", "\n").replace("\n2.", "\n").replace("\n3.", "\n")
+            # Listenreste entfernen
+            for pat in ("\n- ", "\n• ", "\n1.", "\n2.", "\n3."):
+                text = text.replace(pat, "\n")
             return text
 
         text = _call_openai_safe(_do, fallback_text=_soft_fallback())
@@ -342,6 +360,18 @@ def ai_generate_feedback(
     except Exception:
         return _soft_fallback()
 
+def ai_generate_group_feedback(
+    question_text: str,
+    answer_text: str,
+    motive: str,
+    chance: str,
+    mode: str | None = None,
+) -> str:
+    """Spezielle WeDo-Variante – Ihr-Form + Label 'WeDo-Impuls'."""
+    return ai_generate_feedback(
+        question_text, answer_text, motive, chance,
+        mode=mode, audience="wedo", impulse_label="WeDo-Impuls"
+    )
 
 def ai_weekly_report(snippets: List[str], motive: str, chance: str) -> str:
     """Kompakter Wochenrückblick: 1–2 Absätze + optionaler Impuls (UNDO-Stil)."""
@@ -352,7 +382,7 @@ def ai_weekly_report(snippets: List[str], motive: str, chance: str) -> str:
             "Schreibe wie ein einfühlsamer, klarer Mensch im UNDO-Stil. "
             "1–2 kurze Absätze, maximal ~140 Wörter, keine Listen. "
             "Kurzes Spiegeln der Woche, ein ruhiger Fokus, sanfter Ausblick. "
-            "Optional: Eine Schlusszeile 'UNDO-Impuls: ...'."
+            " Eine Schlusszeile 'UNDO-Impuls: ...'."
         )
         user = f"Beweggrund: {motive or '-'} | Aussicht: {chance or '-'}\nBeispiele der Woche:\n{content}"
 
@@ -373,7 +403,7 @@ def ai_weekly_report(snippets: List[str], motive: str, chance: str) -> str:
 
 
 def ai_monthly_report(snippets: List[str], motive: str, chance: str) -> str:
-    """Kompakter Monatsrückblick: 2 Absätze + optionaler Impuls (UNDO-Stil)."""
+    """Kompakter Monatsrückblick: 2 Absätze + Impuls (UNDO-Stil)."""
     try:
         client = _ensure_openai_client()
         content = "\n\n".join(f"- {s}" for s in snippets[:20])
@@ -381,7 +411,7 @@ def ai_monthly_report(snippets: List[str], motive: str, chance: str) -> str:
             "Schreibe wie ein einfühlsamer, klarer Mensch im UNDO-Stil. "
             "2 Absätze, maximal ~180 Wörter, keine Listen. "
             "Würdige die Entwicklung, mache zwei stille Stärken sichtbar und zeige behutsam eine Richtung. "
-            "Optional: Eine Schlusszeile 'UNDO-Impuls: ...'."
+            "Eine Schlusszeile 'UNDO-Impuls: ...'."
         )
         user = f"Beweggrund: {motive or '-'} | Aussicht: {chance or '-'}\nMonatsbeispiele:\n{content}"
 
@@ -410,7 +440,7 @@ def ai_answer_compare(question_text: str, previous_answer: str, current_answer: 
             "Zwei Sätze, keine Liste. "
             "Erstes: kurz spiegeln, was neu/gewachsen ist. "
             "Zweites: sanft die Richtung halten. "
-            "Optional: Schlusszeile 'UNDO-Impuls: ...' (eine Zeile)."
+            "Schlusszeile 'UNDO-Impuls: ...' (eine Zeile)."
         )
         user = (
             f"Frage: {question_text}\n"
@@ -437,87 +467,77 @@ def ai_answer_compare(question_text: str, previous_answer: str, current_answer: 
 # ------------------------------------------------------------
 # Fragegeneratoren
 # ------------------------------------------------------------
-def ai_generate_group_question(
-    motive: str | None,
-    chance: str | None,
-    mode: str | None = None,          # "morning" | "evening" optional
-    seed_texts: List[str] | None = None
-) -> str:
-    """
-    Liefert GENAU EINE Gruppenfrage im UNDO/WeDo-Stil.
-    - 1 Satz (8–18 Wörter), „wir“-Perspektive, warm und klar.
-    - Motive/Chance nur subtil als Hintergrund.
-    - Modus kann den Ton (Start/Abschluss) andeuten.
-    - Fallback nutzt Seeds.
-    """
-    default_seeds_morning = [
-         "Womit beginnt ihr heute, damit es sich leicht und stimmig anfühlt?",
-         "Welche kleine Entscheidung gibt eurem Tag heute einen guten Ton?",
-         "Worauf wollt ihr euch gemeinsam einlassen, damit Bewegung entsteht?",
-         "Was braucht euer Miteinander heute, um ruhig in Gang zu kommen?"
-    ]
-    default_seeds_evening = [
-         "Welcher Moment hat euch heute ein Stück näher zusammengebracht?",
-         "Wofür wollt ihr euch heute gemeinsam Anerkennung geben?",
-         "Was dürft ihr heute abschließen, damit es ruhiger in euch wird?",
-         "Welche kleine Sache hat heute einen echten Unterschied gemacht?"
-    ]
+# pro_feedback_engine.py
 
-    seeds = (seed_texts or [])[:]
-    if not seeds:
-        seeds = default_seeds_evening if (mode == "evening") else default_seeds_morning
+logger = logging.getLogger(__name__)
 
+# Wenn False: keine Seeds mehr – KI-only.
+USE_SEED_FALLBACK = False
+
+def ai_generate_group_question(*, motive: str | None, chance: str | None, mode: str = "morning") -> str:
+    """
+    Erstelle eine simple Frage aufgrund der Aspekte motive und chance
+    Binde motive und chance in deine Frage ein, ohne sie konkret zu nennen
+    Leite die Gruppe mit deiner Frage auf einen Weg zur Verbesserung des Problems
+    Stelle die Frage warm, simpel und nicht überspitzt
+    """
     motive_s = (motive or "").strip()
     chance_s = (chance or "").strip()
+    tone = "kleiner, ruhiger Start" if mode == "morning" else "leiser Abschlussblick"
 
-    # Versuche KI
     try:
-        client = _ensure_openai_client()
+        client = _ensure_openai_client()  # nutzt deinen bestehenden Helper
+
         system = (
-            "Du bist ein empathischer Coach im UNDO/WeDo-Stil. "
-            "Gib genau EINE Frage, ein einzelner Satz (8–18 Wörter), "
-            "in ihr-Perspektive, warm und klar. "
-            "Kein Listenstil, keine Befehle, kein Fachjargon, keine Wiederholung der Nutzerdaten."
+            "Du bist UNDO · WeDo. Formuliere genau EINE kurze Gruppenfrage (8–18 Wörter), "
+            "in zweiter Person Plural (ihr/euch/euer), warm, klar und alltagstauglich. "
+            "Binde Motiv/Chance nur implizit ein (keine wörtliche Nennung). "
+            "Kein Vorwort, keine Liste, keine Emojis – gib NUR die Frage zurück."
         )
-        user_msg = (
-            f"Modus: {mode or 'unbekannt'}\n"
-            f"Gruppen-Motive: {motive_s or '-'}\n"
-            f"Gruppen-Chance: {chance_s or '-'}\n"
-            "Formatiere GENAU: nur 1 Satz, sonst nichts."
+        user = (
+            f"Modus: {mode} ({tone})\n"
+            f"Motiv (Warum): {motive_s or '—'}\n"
+            f"Chance (Ziel): {chance_s or '—'}\n"
+            "Gib genau einen Satz zurück, der mit '?' endet."
         )
 
         def _do():
             resp = client.chat.completions.create(
                 model="gpt-4o-mini",
+                temperature=0.55,
+                max_tokens=60,
                 messages=[
                     {"role": "system", "content": system},
-                    {"role": "user", "content": user_msg},
+                    {"role": "user", "content": user},
                 ],
-                temperature=0.5,
-                max_tokens=60,
             )
-            text = (resp.choices[0].message.content or "").strip()
-            text = text.split("\n")[0].strip()
-            # minimale Normalisierung
-            if not text.endswith("?"):
-                text = text.rstrip(". ") + "?"
-            return text
+            q = (resp.choices[0].message.content or "").strip()
+            # nur erste Zeile, sauber trimmen
+            q = q.splitlines()[0].strip()
+            if not q.endswith("?"):
+                q = q.rstrip(". ") + "?"
 
-        return _call_openai_safe(_do, fallback_text=None)  # wenn KI patzt -> unten Seeds
+            # Minimal-Validierung: Wortanzahl
+            wc = len(q.split())
+            if wc < 6 or wc > 22:
+                # neutraler, impliziter Fallback ohne explizite Nennung von Motiv/Chance
+                return "Womit wollt ihr heute beginnen, damit es sich leicht und stimmig anfühlt?"
 
-    except Exception:
-        pass
+            # Sicherheit: unbedingt 2. Person Plural
+            # (kein hartes Rewriting, nur sanfter Check; optional)
+            if any(tok in q.lower() for tok in (" ich ", " wir ", " unser ", " uns ")):
+                # sanft neutralisieren, ohne den Sinn zu zerstören
+                q = q.replace("Wir ", "Ihr ").replace(" wir ", " ihr ").replace(" uns ", " euch ").replace(" unser ", " euer ")
+            return q
 
-    # Fallback Seeds, minimal personalisiert
-    base = random.choice(seeds)
-    if motive_s or chance_s:
-        # nur eine leichte Andeutung
-        if "heute" in base.lower():
-            base = base.replace("heute", "heute – passend zu unserem Warum")
-    if not base.endswith("?"):
-        base += "?"
-    return base
+        return _call_openai_safe(_do, fallback_text="Womit wollt ihr heute beginnen, damit es sich leicht und stimmig anfühlt?")
 
+    except Exception as e:
+        try:
+            logger.exception("ai_generate_group_question failed: %s", e)
+        except Exception:
+            pass
+        return "Womit wollt ihr heute beginnen, damit es sich leicht und stimmig anfühlt?"
 
 def ai_generate_question(motive: str, chance: str, mode: str, seed_texts: List[str] | None = None) -> str:
     """"

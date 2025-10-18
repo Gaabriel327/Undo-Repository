@@ -2,13 +2,16 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>{% block title %}UNDO{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
   <style>
     :root{
       --bg:#ffffff; --fg:#0a0a0a; --muted:#6b6b6b; --line:#e9e9e9;
       --radius:16px; --shadow:0 6px 20px rgba(0,0,0,.06);
       --btn:#000; --btnText:#fff;
+      --navh:68px; /* Höhe der Bottom-Nav */
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -17,9 +20,12 @@
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
       background:var(--bg);
       color:var(--fg);
-      padding:28px 18px 110px; /* Platz für Bottom-Nav */
+      padding:28px 18px calc(var(--navh) + 28px); /* Platz für Bottom-Nav */
     }
+
     .container{max-width:760px;margin:0 auto}
+    .main-content{min-height:calc(100vh - var(--navh) - 56px);}
+
     h1,h2,h3{margin:0 0 12px}
     .sub{color:var(--muted);font-size:14px}
 
@@ -85,8 +91,9 @@
     /* Bottom Navbar */
     nav.undo-nav{
       position:fixed; bottom:0; left:0; right:0;
+      height:var(--navh);
       background:#fff; border-top:1px solid var(--line);
-      padding:12px 0; display:flex; justify-content:space-around;
+      padding:12px 0; display:flex; justify-content:space-around; align-items:center;
       z-index:1000;
     }
     nav.undo-nav a{
@@ -99,28 +106,30 @@
     .sp-20{height:20px}
 
     @media (min-width:720px){
-      body{ padding:40px 22px 120px; }
+      body{ padding:40px 22px calc(var(--navh) + 40px); }
     }
   </style>
+
   {% block head_extra %}{% endblock %}
 </head>
 <body>
-<body>
   <div class="container">
-    {% block content %}{% endblock %}
+    <main class="main-content">
+      {% block content %}{% endblock %}
+    </main>
   </div>
 
   {% block navbar %}
     {% if current_user.is_authenticated and not hide_nav %}
-      <nav class="undo-nav">
+      <nav class="undo-nav" role="navigation" aria-label="UN D O Navigation">
         <a href="{{ url_for('index') }}">Home</a>
-        <a href="{{ url_for('reflections') }}">Reflections</a>  {# statt reflection! #}
+        <a href="{{ url_for('reflections') }}">Reflections</a>
         <a href="{{ url_for('profile') }}">Profile</a>
       </nav>
     {% endif %}
   {% endblock %}
 
   {% block scripts %}{% endblock %}
-<script src="{{ url_for('static', filename='swipe.js') }}"></script>
+  <script src="{{ url_for('static', filename='swipe.js') }}"></script>
 </body>
 </html>

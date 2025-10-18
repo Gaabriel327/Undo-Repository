@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Mitglieder verwalten{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2>Mitglieder von „{{ group.name }}“</h2>
+  <div class="card">
+    {% if members %}
+      {% for m in members %}
+        <div class="row">
+          <div class="grow">
+            <div class="title">{{ m.username }}</div>
+            <div class="muted">{{ m.email }}</div>
+          </div>
+          <form method="post" action="{{ url_for('group_member_remove', group_id=group.id) }}">
+            <input type="hidden" name="user_id" value="{{ m.id }}">
+            <button class="btn ghost" type="submit">Entfernen</button>
+          </form>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="muted">Noch keine Mitglieder.</div>
+    {% endif %}
+  </div>
+
+  <a class="btn" href="{{ url_for('group_overview', group_id=group.id) }}">Zur Gruppe</a>
+</div>
+{% endblock %}

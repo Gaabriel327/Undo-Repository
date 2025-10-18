@@ -31,7 +31,7 @@ class User(db.Model, UserMixin):
 
     # Persönliche Daten / Onboarding
     first_name = db.Column(db.String(100))
-    birth_date = db.Column(db.String(20))
+    birth_date = db.Column(db.Date)
     motive = db.Column(db.Text)   # Beweggrund
     chance = db.Column(db.Text)   # Aussicht/Ziel
     profile_completed = db.Column(db.Boolean, default=False)

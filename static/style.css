@@ -1,69 +1,39 @@
 /* 🟢 Global Reset */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 🌈 Design-Defaults / Fallbacks für verwendete Variablen */
+:root{
+  --line: #e9e9e9;
+  --muted: #666;
+  --btnw: 140px;
+  --btnh: 40px;
+  --btnfs: 14px;
+  --navh: 64px; /* ungefähre Höhe der Bottom-Navbar */
+}
+
+/* ⚪ Seite & Scroll-Verhalten (fix für iOS) */
+html, body {
+  height: auto;          /* keine starre Fixhöhe */
+  min-height: 100%;
+  overflow-y: auto;      /* Scrollen erlauben */
+  -webkit-overflow-scrolling: touch; /* iOS inertia scroll */
 }
 
 /* ⚪ Body */
 body {
-    font-family: Arial, sans-serif;
-    padding-bottom: 100px; /* genug Platz für Navbar */
-    background-color: #fff;
-    color: #000;
-    min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background-color: #fff;
+  color: #000;
+
+  /* genug Platz für die fixierte Bottom-Navbar + iPhone Safe-Area */
+  padding-bottom: calc(var(--navh) + env(safe-area-inset-bottom) + 16px);
 }
 
-/* ⚫ Navbar */
-.navbar {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    background-color: #ffffff;
-    display: flex;
-    justify-content: space-around;
-    padding: 10px 0;
-    border-top: 1px solid #ffffff;
-}
-
-/* 🟤 Buttons */
-.profile-button {
-    display: block;
-    width: 100%;
-    max-width: 250px;
-    margin: 10px auto;
-    padding: 12px;
-    font-size: 16px;
-    border: none;
-    border-radius: 10px;
-    background-color: #000;
-    color: #ffffff;
-    cursor: pointer;
-}
-
-.profile-button:disabled {
-    background-color: #ffffff;
-}
-
-.streak-box {
-    margin: 40px auto;
-    text-align: center;
-}
-
-.streak-number {
-    font-size: 64px;
-    font-weight: bold;
-    color: #000;
-    line-height: 1;
-}
-
-.streak-label {
-    font-size: 18px;
-    font-weight: 500;
-    color: #555;
-    margin-top: 8px;
-}
-
+/* 🧭 Optionaler Topbar (bleibt am Seitenanfang) */
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -72,40 +42,156 @@ body {
   background-color: #fff;
   border-bottom: 1px solid #ddd;
 }
-
 .topbar .brand {
   font-size: 20px;
   font-weight: bold;
 }
 
+/* ⚫ Bottom Navbar – fixiert, sicher über Inhalt */
+.navbar {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  height: var(--navh);
+  background-color: #ffffff;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px 0;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom)); /* Platz auf iPhone X+ */
+  border-top: 1px solid #eee;
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.06);
+  z-index: 1000; /* über Buttons/Listen */
+}
+
+/* 🔘 Icon-Buttons in Navbars */
 .icon-btn img {
-  width: 28px;   /* Größe einheitlich halten */
+  width: 28px;
   height: 28px;
   object-fit: contain;
 }
 
-/* gleiche Zeilenhöhe + saubere Ausrichtung */
-.row{
-  display:flex; align-items:center; gap:14px;
-  padding:14px 0; border-top:1px solid var(--line);
-  min-height:72px;                 /* ✔ einheitliche Zeilenhöhe */
+/* 🟤 Primary Buttons */
+.profile-button {
+  display: block;
+  width: 100%;
+  max-width: 250px;
+  margin: 10px auto;
+  padding: 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  background-color: #000;
+  color: #ffffff;
+  cursor: pointer;
+}
+.profile-button:disabled {
+  background-color: #f3f3f3;
+  color: #999;
+  cursor: not-allowed;
 }
 
-/* Texte nicht umbrechen -> verhindert höhere Zeile beim Abo-Text */
-.muted{
-  color:var(--muted); font-size:14px; margin-top:2px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; /* ✔ keine Mehrzeiligkeit */
+/* 🔥 Streak-Box */
+.streak-box {
+  margin: 40px auto;
+  text-align: center;
+}
+.streak-number {
+  font-size: 64px;
+  font-weight: bold;
+  color: #000;
+  line-height: 1;
+}
+.streak-label {
+  font-size: 18px;
+  font-weight: 500;
+  color: #555;
+  margin-top: 8px;
+}
+
+/* 📦 Listen/Zeilen (Einstellungen, Tokens, etc.) */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  min-height: 72px; /* einheitliche Zeilenhöhe */
+  background: #fff;
+}
+
+/* Texte nicht umbrechen -> vermeidet „springende“ Zeilenhöhen */
+.muted {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* rechte Buttonspalte: gleiche Breite in allen Zeilen */
-.action{ flex:0 0 var(--btnw); display:flex; justify-content:flex-end; }
-.btn{
-  width:var(--btnw); height:var(--btnh);
-  display:inline-flex; align-items:center; justify-content:center;
-  padding:0 16px; border-radius:10px; border:1px solid #000;
-  background:#000; color:#fff; font-weight:800; cursor:pointer;
-  text-decoration:none; white-space:nowrap; font-size:var(--btnfs); line-height:1;
+.action {
+  flex: 0 0 var(--btnw);
+  display: flex;
+  justify-content: flex-end;
+}
+.btn {
+  width: var(--btnw);
+  height: var(--btnh);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #000;
+  background: #000;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: var(--btnfs);
+  line-height: 1;
 }
 
-/* restliche kleine Ursachen für Versatz beseitigen */
-form{ margin:0; }
+/* 🗂️ Formulare nicht mit extra Rändern „aufblähen“ */
+form { margin: 0; }
+
+/* 🖼️ Medien responsiv */
+img, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 🧱 Cards/Container */
+.card {
+  max-width: 680px;
+  margin: 12px auto;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.03);
+  box-sizing: border-box;
+}
+
+/* 📄 Hauptinhaltsbereich – sorgt dafür, dass nichts von der Navbar verdeckt wird */
+.main-content {
+  padding: 16px;
+  padding-bottom: 24px; /* + body padding-bottom -> genug Luft */
+}
+
+/* 🧷 Falls du irgendwo Buttons unten „anpinnen“ willst */
+.sticky-footer {
+  position: sticky;
+  bottom: calc(var(--navh) + env(safe-area-inset-bottom));
+  background: #fff;
+  padding: 12px 16px;
+  border-top: 1px solid #eee;
+  z-index: 900;
+}
+
+/* 🖱️ Klickflächen niemals unter der Navbar „verschwinden“ lassen */
+.clickable { position: relative; z-index: 1; }

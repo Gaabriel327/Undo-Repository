@@ -25,7 +25,7 @@
         <!-- Buttons -->
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
           <a class="btn ghost" href="{{ url_for('feedback_view', rid=r.id) }}">Details</a>
-          <button class="btn" type="button" onclick="shareReflection({{ r.id }})">Teilen</button>
+          <button class="btn" type="button" onclick="shareReflection('{{ r.id }}')">Teilen</button>
         </div>
       </div>
     {% endfor %}
