@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, date
 import io
 import numpy as np
 
+from flask import flash
+from pro_feedback_engine import require_feature_or_charge, FEATURE
 from PIL import Image, ImageDraw, ImageFont
 from flask import (
     Flask, request, redirect, url_for, render_template,
@@ -816,41 +818,51 @@ def _compute_motive_due(user):
 @app.route("/register", methods=["GET", "POST"], endpoint="register")
 def register_route():
     if request.method == "POST":
-        username   = (request.form.get("username") or "").strip()
-        email      = (request.form.get("email") or "").strip().lower()
-        password   = request.form.get("password") or ""
-        promo_in   = (request.form.get("promo_code") or "").strip()
-        # 🟢 Neu: Geburtsdatum (optional, aber validiert wenn gesetzt)
-        birthdate_str = (request.form.get("birthdate") or "").strip()
-        birthdate = None
-        if birthdate_str:
+        username = (request.form.get("username") or "").strip()
+        email    = (request.form.get("email") or "").strip().lower()
+        password = request.form.get("password") or ""
+        promo_in = (request.form.get("promo_code") or "").strip()
+
+        # 🟢 Neu: Geburtsdatum (optional, validiert wenn gesetzt)
+        birth_raw = (request.form.get("birth_date") or "").strip()  # Name passt zum HTML-Input
+        birth_obj = None
+        if birth_raw:
             try:
-                # Erwartetes HTML-Input-Format: type="date" -> "YYYY-MM-DD"
-                birthdate = datetime.strptime(birthdate_str, "%Y-%m-%d").date()
+                # HTML <input type="date"> liefert "YYYY-MM-DD"
+                birth_obj = datetime.strptime(birth_raw, "%Y-%m-%d").date()
             except ValueError:
                 return render_template(
                     "register.html",
-                    username=username, email=email, promo_code=promo_in,
-                    birthdate=birthdate_str,
+                    username=username,
+                    email=email,
+                    promo_code=promo_in,
+                    birth_date=birth_raw,  # Echo zurück ins Formular
                     error="Bitte gib ein gültiges Geburtsdatum im Format JJJJ-MM-TT an."
                 ), 200
 
+        # Pflichtfelder prüfen
         if not username or not email or not password or not promo_in:
             return render_template(
                 "register.html",
-                username=username, email=email, promo_code=promo_in,
-                birthdate=birthdate_str,
+                username=username,
+                email=email,
+                promo_code=promo_in,
+                birth_date=birth_raw,
                 error="Bitte alle Felder inkl. Promo-Code ausfüllen."
             ), 200
 
+        # Nutzer vorhanden?
         if User.query.filter((User.username == username) | (User.email == email)).first():
             return render_template(
                 "register.html",
-                username=username, email=email, promo_code=promo_in,
-                birthdate=birthdate_str,
+                username=username,
+                email=email,
+                promo_code=promo_in,
+                birth_date=birth_raw,
                 error="Benutzername oder E-Mail vergeben."
             ), 200
 
+        # Promo-Code normalisieren & prüfen
         norm_in = promo_in.lower().replace("-", "").replace(" ", "")
         pc = (PromoCode.query
               .filter(func.replace(func.replace(func.lower(PromoCode.code), "-", ""), " ", "") == norm_in)
@@ -859,27 +871,34 @@ def register_route():
         if not pc or not pc.active:
             return render_template(
                 "register.html",
-                username=username, email=email, promo_code=promo_in,
-                birthdate=birthdate_str,
+                username=username,
+                email=email,
+                promo_code=promo_in,
+                birth_date=birth_raw,
                 error="Ungültiger Promo-Code."
             ), 200
 
         if pc.expires_at and pc.expires_at < datetime.utcnow():
             return render_template(
                 "register.html",
-                username=username, email=email, promo_code=promo_in,
-                birthdate=birthdate_str,
+                username=username,
+                email=email,
+                promo_code=promo_in,
+                birth_date=birth_raw,
                 error="Promo-Code abgelaufen."
             ), 200
 
         if pc.max_uses is not None and int(pc.used_count or 0) >= pc.max_uses:
             return render_template(
                 "register.html",
-                username=username, email=email, promo_code=promo_in,
-                birthdate=birthdate_str,
+                username=username,
+                email=email,
+                promo_code=promo_in,
+                birth_date=birth_raw,
                 error="Promo-Code bereits aufgebraucht."
             ), 200
 
+        # ✅ User anlegen (inkl. birth_date)
         user = User(
             username=username,
             email=email,
@@ -888,7 +907,7 @@ def register_route():
             pro_until=datetime.utcnow() + timedelta(days=pc.duration_days or 30),
             promo_locked=True,
             promo_code=pc,
-            birthdate=birthdate,  # 🟢 Neu: speichern
+            birth_date=birth_obj,  # <-- wichtig
         )
         db.session.add(user)
         pc.used_count = int(pc.used_count or 0) + 1
@@ -897,6 +916,7 @@ def register_route():
         login_user(user, remember=True, fresh=True)
         return redirect(url_for("personal", onboarding=1))
 
+    # GET
     return render_template("register.html")
 
 # PROMO CODES
@@ -1448,36 +1468,39 @@ def group_overview(group_id):
         radar_url=radar_url
     )
 
-@app.get("/wedo/<group_id>/members", endpoint="group_members")
-@login_required
-def group_members(group_id):
-    g = Group.query.get_or_404(group_id)
-    if str(current_user.id) != str(g.created_by):
-        return "Nur der Ersteller kann Mitglieder verwalten.", 403
-
-    member_ids = _group_members_list(g)
-    members = User.query.filter(User.id.in_([int(x) for x in member_ids if x.isdigit()])).all()
-    return render_template("group_members.html", group=g, members=members)
-
 @app.post("/wedo/<group_id>/members/remove", endpoint="group_member_remove")
 @login_required
 def group_member_remove(group_id):
     g = Group.query.get_or_404(group_id)
+
+    # Nur Owner darf Mitglieder verwalten
     if str(current_user.id) != str(g.created_by):
-        return "Nur der Ersteller kann Mitglieder entfernen.", 403
+        return "Nicht erlaubt", 403
 
-    uid_to_remove = (request.form.get("user_id") or "").strip()
-    if not uid_to_remove:
-        return redirect(url_for("group_members", group_id=g.id))
+    uid = (request.form.get("user_id") or "").strip()
+    if not uid:
+        flash("Fehlende user_id.", "warn")
+        return redirect(url_for("group_edit", group_id=g.id))
 
-    _group_remove_member(g, uid_to_remove)
+    # Sich selbst aus Versehen rauswerfen verhindern (optional)
+    if uid == str(g.created_by):
+        flash("Owner kann nicht entfernt werden.", "warn")
+        return redirect(url_for("group_edit", group_id=g.id))
+
+    # Mitglied aus CSV entfernen
+    lst = [x for x in (g.group_members or "").split(",") if x.strip()]
+    lst = [x for x in lst if x != uid]
+    g.group_members = ",".join(lst)
+
     try:
         db.session.commit()
+        flash("Mitglied entfernt.", "ok")
     except Exception:
         db.session.rollback()
-        return "Entfernen fehlgeschlagen – bitte später erneut.", 500
+        flash("Entfernen fehlgeschlagen.", "warn")
 
-    return redirect(url_for("group_members", group_id=g.id))
+    # Ab jetzt immer zur Kombi-Seite zurück
+    return redirect(url_for("group_edit", group_id=g.id))
 
 @app.post("/wedo/<group_id>/join", endpoint="group_join")
 @login_required
@@ -1503,6 +1526,11 @@ def group_join(group_id):
 
     return redirect(url_for("group_overview", group_id=g.id))
 
+@app.get("/wedo/<group_id>/members", endpoint="group_members")
+@login_required
+def group_members(group_id):
+    # Nur noch eine Seite verwenden:
+    return redirect(url_for("group_edit", group_id=group_id))
 # ---------------------------------------------
 # WeDo: Prompt (GET: Frage zeigen, POST: speichern)
 #  - Extra-Frage ist deaktiviert (immer False)
@@ -1513,6 +1541,7 @@ def group_join(group_id):
 def group_prompt(group_id):
     g = Group.query.get_or_404(group_id)
 
+    # Berechtigung: Owner oder Mitglied
     uid_s = str(current_user.id)
     is_member = (uid_s == str(g.created_by)) or _csv_has_member(g.group_members, uid_s)
     if not is_member:
@@ -1521,17 +1550,40 @@ def group_prompt(group_id):
     now_local, _, _ = today_bounds_utc(APP_TZ)
     current_mode = "evening" if now_local.hour >= 18 else "morning"
 
+    # ---------- Extra-Flow (analog Solo) ----------
+    if request.method == "GET":
+        if request.args.get("extra") == "1":
+            session["wedo_pending_extra"] = True
+        elif request.args.get("extra") == "0":
+            session.pop("wedo_pending_extra", None)
+
+    is_extra = (request.values.get("extra") == "1") or bool(session.get("wedo_pending_extra"))
+
+    # Wenn Extra angefordert wird aber zu wenig Tokens vorhanden sind → zurück
+    if request.method == "GET" and is_extra and int(getattr(current_user, "tokens", 0) or 0) < 1:
+        session.pop("wedo_pending_extra", None)
+        return redirect(url_for("group_overview", group_id=group_id))
+
+    # ---------- POST: Antwort speichern ----------
     if request.method == "POST":
         answer = (request.form.get("answer") or "").strip()
         shown_text = (request.form.get("question_text") or "").strip()
         if not answer or not shown_text:
             return redirect(url_for("group_prompt", group_id=group_id))
 
-        # Nur 1× pro Tag/Modus
-        if _user_answered_group_today(current_user.id, group_id, current_mode):
+        # Normale Frage nur 1× pro Tag/Modus (Extra darf trotzdem beantwortet werden)
+        if _user_answered_group_today(current_user.id, group_id, current_mode) and not is_extra:
             return redirect(url_for("group_overview", group_id=group_id))
 
-        # Feedback (WeDo → ihr-Form)
+        # Extra kostet 1 Token (über Feature-Tabelle) – VOR dem Speichern abbuchen
+        if is_extra:
+            ok, msg = require_feature_or_charge(db, current_user, FEATURE.EXTRA_WEDO)
+            if not ok:
+                session.pop("wedo_pending_extra", None)
+                return redirect(url_for("group_overview", group_id=group_id))
+            session.pop("wedo_pending_extra", None)  # Verbrauchtes Flag löschen
+
+        # Feedback (WeDo → „ihr“-Form)
         if is_pro(current_user):
             fb = ai_generate_feedback(
                 shown_text, answer,
@@ -1555,7 +1607,7 @@ def group_prompt(group_id):
         db.session.add(r)
         db.session.commit()
 
-        # Qualitätstokens 1–3
+        # Qualitätstokens (1–3) hinzufügen
         earned_quality = _quality_tokens(answer)
         if earned_quality > 0:
             current_user.tokens = int(current_user.tokens or 0) + earned_quality
@@ -1570,18 +1622,22 @@ def group_prompt(group_id):
         total_earned = earned_quality + earned_streak
         return redirect(url_for("feedback_view", rid=r.id, compact=1, earned=total_earned))
 
-    # ---------- GET: Frage generieren (eigener Block!) ----------
+    # ---------- GET: Frage generieren (KI-only, Seeds sind aus) ----------
+    q = None
     try:
         q = ai_generate_group_question(
             motive=getattr(g, "motive", None),
             chance=getattr(g, "chance", None),
             mode=current_mode
         )
-    except Exception:
+    except Exception as e:
+        # Hilfreiches Logging, falls der KI-Call fehlschlägt (typisch: fehlender OPENAI_API_KEY)
+        print("[group_prompt] ai_generate_group_question error:", e)
         q = None
 
     if not q:
-        q = "Womit wollt ihr heute beginnen, damit es sich leicht in Bewegung anfühlt?"
+        # Minimaler Fallback, falls KI down ist – sehr neutral
+        q = "Womit wollt ihr heute beginnen, damit es sich leicht und stimmig anfühlt?"
     q = _to_plural_second_person(q)
 
     return render_template(
@@ -1590,6 +1646,7 @@ def group_prompt(group_id):
         mode=current_mode,
         question=q,
         question_text=q,  # Hidden-Feld
+        is_extra=is_extra
     )
 
 

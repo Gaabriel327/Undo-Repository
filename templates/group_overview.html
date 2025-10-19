@@ -15,33 +15,48 @@
       <img src="{{ radar_url }}" alt="Gruppenfortschritt" style="max-width:100%;border-radius:12px;">
     </div>
 
-    <div class="row">
+    <div class="row" style="align-items:center;">
       <div class="grow">
         <div class="title">Today’s WeDo</div>
         {% if already_today %}
-          <div class="muted">Heute bereits beantwortet. {{ next_unlock_label }}</div>
+          <div class="muted">Heute bereits beantwortet.</div>
         {% endif %}
       </div>
+      <div class="action" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+        {% set invite = url_for('group_join', group_id=group.id, _external=True) %}
+        <button class="btn ghost" type="button" onclick="shareInvite('{{ invite }}')">Mitglieder einladen</button>
 
-      {% if user and (user.id|string) == group.created_by %}
-  <a class="btn" href="{{ url_for('group_members', group_id=group.id) }}">Mitglieder verwalten</a>
-{% endif %}
-
-{% set uid_s = (user.id|string) %}
-{% set is_owner = (uid_s == group.created_by) %}
-{% set is_member = (group.group_members or '') and (uid_s in (group.group_members.split(','))) %}
-
-{% if (not is_owner) and (not is_member) %}
-  <form method="post" action="{{ url_for('group_join', group_id=group.id) }}">
-    <button class="btn" type="submit">Gruppe beitreten</button>
-  </form>
-{% endif %}
-
-      {% if already_today %}
-        <a class="btn ghost" href="{{ url_for('group_prompt', group_id=group.id, extra=1) }}">Extra-Frage (2 Tokens)</a>
-      {% else %}
-        <a class="btn" href="{{ url_for('group_prompt', group_id=group.id) }}">Heute beantworten</a>
-      {% endif %}
+        {% if already_today %}
+          <a class="btn" href="{{ url_for('group_prompt', group_id=group.id, extra=1) }}">Extra-Frage (1 Token)</a>
+        {% else %}
+          <a class="btn" href="{{ url_for('group_prompt', group_id=group.id) }}">Heute beantworten</a>
+        {% endif %}
+      </div>
     </div>
   </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function shareInvite(link) {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Komm in meine UNDO Gruppe!',
+          text: 'Hier ist dein Einladungslink:',
+          url: link
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn('Native Share-API nicht verfügbar:', e);
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      alert('Einladungslink wurde in die Zwischenablage kopiert:\n' + link);
+    } catch (e) {
+      prompt('Teilen wird nicht unterstützt – kopiere den Link:', link);
+    }
+  }
+</script>
 {% endblock %}
