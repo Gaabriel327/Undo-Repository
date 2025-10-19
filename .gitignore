@@ -16,4 +16,4 @@ undo.db
 # OS/Editor
 .DS_Store
 .idea/
-.vscode/
+.vscode/.env
